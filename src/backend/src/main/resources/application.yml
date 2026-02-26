@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: jargoyle
+
+  # --- Datasource ---
+  # Uncomment and configure when PostgreSQL is available.
+  # datasource:
+  #   url: jdbc:postgresql://localhost:5432/jargoyle
+  #   username: jargoyle
+  #   password: changeme
+
+  # --- JPA / Hibernate ---
+  # Uncomment once the datasource is configured.
+  # jpa:
+  #   hibernate:
+  #     ddl-auto: validate
+  #   open-in-view: false
+
+  # --- Flyway ---
+  # Flyway is on the classpath but will only run when a datasource is configured.
+  # Place migration files in src/main/resources/db/migration/
+
+  # --- Security ---
+  # A permit-all SecurityFilterChain is defined in SecurityConfig.java so the
+  # app starts without OAuth configured. Replace it with proper security rules
+  # when authentication is implemented.
+
+  # Disable JPA auto-configuration until a datasource is configured.
+  # Remove these exclusions once PostgreSQL is available.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration

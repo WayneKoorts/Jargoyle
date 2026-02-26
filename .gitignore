@@ -1,0 +1,21 @@
+# IDE
+.vscode/
+.idea/
+*.iml
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log

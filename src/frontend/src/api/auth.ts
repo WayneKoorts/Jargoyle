@@ -15,4 +15,3 @@ export function logout(): Promise<void> {
   return apiClient('/auth/logout', { method: 'POST' })
 }
 
-export const GOOGLE_AUTH_URL = '/oauth2/authorization/google'

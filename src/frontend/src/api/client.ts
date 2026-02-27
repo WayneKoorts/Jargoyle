@@ -1,4 +1,4 @@
-const BASE_URL = '/api'
+import { API_BASE_URL } from '../constants'
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown
@@ -17,7 +17,7 @@ export async function apiClient<T>(
 ): Promise<T> {
   const { body, headers, ...rest } = options
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',

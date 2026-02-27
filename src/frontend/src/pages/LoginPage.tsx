@@ -1,4 +1,4 @@
-import { GOOGLE_AUTH_URL } from '../api/auth'
+import { GOOGLE_AUTH_URL } from '../constants'
 
 export default function LoginPage() {
   return (

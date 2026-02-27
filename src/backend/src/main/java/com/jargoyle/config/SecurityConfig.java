@@ -1,10 +1,10 @@
 package com.jargoyle.config;
 
+import java.util.Optional;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -14,13 +14,14 @@ import com.jargoyle.service.CustomOidcUserService;
 public class SecurityConfig {
 
     private CustomOidcUserService _customOidcUserService;
-    private ClientRegistrationRepository _clientRegistrationRepository;
+    private Optional<OAuth2AuthorizationRequestResolver> _authorizationRequestResolver;
+    
     
     public SecurityConfig(
         CustomOidcUserService customOidcUserService,
-        ClientRegistrationRepository clientRegistrationRepository) {
+        Optional<OAuth2AuthorizationRequestResolver> authorizationRequestResolver) {
         _customOidcUserService = customOidcUserService;
-        _clientRegistrationRepository = clientRegistrationRepository;
+        _authorizationRequestResolver = authorizationRequestResolver;
     }
 
     @Bean
@@ -31,10 +32,8 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth -> oauth
-                .authorizationEndpoint(auth -> auth
-                    .authorizationRequestResolver(
-                        authorizationRequestResolver(_clientRegistrationRepository)
-                    )
+                .authorizationEndpoint(auth -> 
+                    _authorizationRequestResolver.ifPresent(auth::authorizationRequestResolver)
                 )
                 .userInfoEndpoint(userInfo -> userInfo
                     .oidcUserService(_customOidcUserService)
@@ -42,18 +41,5 @@ public class SecurityConfig {
             )
             .logout(logout -> logout.logoutSuccessUrl("/"))
             .build();
-    }
-
-    private OAuth2AuthorizationRequestResolver authorizationRequestResolver(
-        ClientRegistrationRepository clientRegistrationRepository) {
-        var resolver = new DefaultOAuth2AuthorizationRequestResolver(
-            clientRegistrationRepository, "/oauth2/authorization");
-        resolver.setAuthorizationRequestCustomizer(customizer ->
-            customizer.additionalParameters(params ->
-                params.put("prompt", "select_account")
-            )
-        );
-
-        return resolver;
-    }
+    }    
 }

@@ -1,0 +1,29 @@
+# Development profile configuration.
+# Active when SPRING_PROFILES_ACTIVE includes "dev".
+# Applied on top of application.yml — overrides and extends the base config.
+
+spring:
+
+  # Cancel the autoconfigure exclusions from application.yml.
+  # DataSource, Hibernate, and Flyway auto-configuration is needed in dev.
+  autoconfigure:
+    exclude: []
+
+  datasource:
+    # The hostname "db" resolves to the PostgreSQL container in compose.yml.
+    # When running outside Compose, override JARGOYLE_DB_HOST to point at your local instance.
+    url: jdbc:postgresql://${JARGOYLE_DB_HOST:localhost}:${JARGOYLE_DB_PORT:5432}/${JARGOYLE_DB_NAME:jargoyle}
+    username: ${JARGOYLE_DB_USERNAME:jargoyle}
+    password: ${JARGOYLE_DB_PASSWORD:changeme}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # Hibernate checks the schema matches the entities but does not modify it.
+      # Flyway is responsible for all schema changes.
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration

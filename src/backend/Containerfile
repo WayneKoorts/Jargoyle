@@ -1,0 +1,35 @@
+# Stage 1: Build
+# Uses the full JDK and Gradle wrapper to compile and package the application.
+FROM eclipse-temurin:25-jdk-noble AS builder
+
+WORKDIR /workspace
+
+# Copy Gradle wrapper and build files first. This layer is cached separately
+# from the source code, so dependency downloads only repeat when build files change.
+COPY gradle/ gradle/
+COPY gradlew .
+COPY settings.gradle.kts .
+COPY build.gradle.kts .
+
+# Ensure the Gradle wrapper is executable (handles Windows CRLF line endings).
+RUN chmod +x gradlew
+
+# Download dependencies into the Gradle cache.
+RUN ./gradlew dependencies --no-daemon
+
+# Copy the application source and build the fat JAR.
+COPY src/ src/
+RUN ./gradlew bootJar --no-daemon
+
+
+# Stage 2: Runtime
+# Uses only the JRE — no compiler, no Gradle — for a smaller image.
+FROM eclipse-temurin:25-jre-noble AS runtime
+
+WORKDIR /app
+
+COPY --from=builder /workspace/build/libs/*.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

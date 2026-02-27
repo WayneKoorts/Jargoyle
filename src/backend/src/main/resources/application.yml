@@ -2,31 +2,21 @@ spring:
   application:
     name: jargoyle
 
-  # --- Datasource ---
-  # Uncomment and configure when PostgreSQL is available.
-  # datasource:
-  #   url: jdbc:postgresql://localhost:5432/jargoyle
-  #   username: jargoyle
-  #   password: changeme
-
-  # --- JPA / Hibernate ---
-  # Uncomment once the datasource is configured.
-  # jpa:
-  #   hibernate:
-  #     ddl-auto: validate
-  #   open-in-view: false
-
-  # --- Flyway ---
-  # Flyway is on the classpath but will only run when a datasource is configured.
-  # Place migration files in src/main/resources/db/migration/
+  # --- Database ---
+  # Database configuration is profile-driven. The "dev" profile
+  # (application-dev.yml) provides the datasource, JPA, and Flyway settings
+  # for local development with the PostgreSQL container in compose.yml.
+  #
+  # For production, set these environment variables instead:
+  #   SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD
+  #
+  # In the default (no-profile) case, DataSource and Hibernate auto-configuration
+  # is disabled so the application starts without a database connection.
 
   # --- Security ---
   # A permit-all SecurityFilterChain is defined in SecurityConfig.java so the
   # app starts without OAuth configured. Replace it with proper security rules
   # when authentication is implemented.
-
-  # Disable JPA auto-configuration until a datasource is configured.
-  # Remove these exclusions once PostgreSQL is available.
   autoconfigure:
     exclude:
       - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration

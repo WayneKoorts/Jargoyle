@@ -1,0 +1,52 @@
+# Jargoyle — Podman/Docker Compose configuration.
+#
+# Default (no profile):  starts the application only.
+#   podman compose up
+#
+# Dev profile:  starts the application and a local PostgreSQL database.
+#   podman compose --profile dev up
+#
+# Credentials and settings can be overridden by creating a .env file.
+# See .env.example for available variables.
+
+services:
+
+  app:
+    build:
+      context: src/backend
+      dockerfile: Containerfile
+    ports:
+      - "${JARGOYLE_APP_PORT:-8080}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: "${SPRING_PROFILES_ACTIVE:-}"
+      JARGOYLE_DB_HOST: db
+      JARGOYLE_DB_PORT: "5432"
+      JARGOYLE_DB_NAME: "${JARGOYLE_DB_NAME:-jargoyle}"
+      JARGOYLE_DB_USERNAME: "${JARGOYLE_DB_USERNAME:-jargoyle}"
+      JARGOYLE_DB_PASSWORD: "${JARGOYLE_DB_PASSWORD:-changeme}"
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
+    restart: unless-stopped
+
+  db:
+    image: pgvector/pgvector:pg17
+    profiles: ["dev"]
+    environment:
+      POSTGRES_DB: "${JARGOYLE_DB_NAME:-jargoyle}"
+      POSTGRES_USER: "${JARGOYLE_DB_USERNAME:-jargoyle}"
+      POSTGRES_PASSWORD: "${JARGOYLE_DB_PASSWORD:-changeme}"
+    ports:
+      - "${JARGOYLE_DB_PORT_EXPOSED:-5432}:5432"
+    volumes:
+      - jargoyle_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${JARGOYLE_DB_USERNAME:-jargoyle} -d ${JARGOYLE_DB_NAME:-jargoyle}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  jargoyle_pgdata:

@@ -32,7 +32,7 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     // Database migrations
-    implementation("org.flywaydb:flyway-core")
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")
 
     // Security

@@ -14,9 +14,18 @@ spring:
   # is disabled so the application starts without a database connection.
 
   # --- Security ---
-  # A permit-all SecurityFilterChain is defined in SecurityConfig.java so the
-  # app starts without OAuth configured. Replace it with proper security rules
-  # when authentication is implemented.
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - openid
+              - email
+              - profile
+
   autoconfigure:
     exclude:
       - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration

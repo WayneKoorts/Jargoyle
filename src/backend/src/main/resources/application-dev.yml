@@ -4,6 +4,10 @@
 
 spring:
 
+  # Redirect to the Vite dev server after OAuth login.
+  # In production, the default "/" serves the SPA from the backend itself.
+  oauth-success-url: http://localhost:5173/
+
   # Cancel the autoconfigure exclusions from application.yml.
   # DataSource, Hibernate, and Flyway auto-configuration is needed in dev.
   autoconfigure:

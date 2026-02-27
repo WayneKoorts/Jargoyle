@@ -14,6 +14,10 @@ spring:
   # is disabled so the application starts without a database connection.
 
   # --- Security ---
+  # Where to redirect after a successful OAuth login.
+  # The dev profile overrides this to the Vite dev server URL.
+  oauth-success-url: /
+
   security:
     oauth2:
       client:

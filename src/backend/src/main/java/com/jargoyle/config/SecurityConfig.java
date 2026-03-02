@@ -34,7 +34,11 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/error", "/css/**", "/js/**").permitAll()
+                .requestMatchers(
+                    "/", "/error", "/css/**", "/js/**",
+                    // Swagger
+                    "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**"
+                ).permitAll()
                 // Allow unauthenticated calls so the SPA gets a 401 JSON response
                 // instead of being redirected to the OAuth login page.
                 .requestMatchers("/api/auth/me").permitAll()

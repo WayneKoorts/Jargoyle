@@ -1,6 +1,5 @@
 package com.jargoyle.controller;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -11,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.jargoyle.dto.UserDto;
-import com.jargoyle.repository.UserRepository;
+import com.jargoyle.security.AuthenticatedUserResolver;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -19,10 +18,12 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final UserRepository _userRepository;
+    private final AuthenticatedUserResolver authenticatedUserResolver;
 
-    public AuthController(UserRepository userRepository) {
-        _userRepository = userRepository;
+    public AuthController(
+        AuthenticatedUserResolver authenticatedUserResolver
+    ) { 
+        this.authenticatedUserResolver = authenticatedUserResolver;
     }
 
     /**
@@ -32,22 +33,10 @@ public class AuthController {
      */
     @GetMapping("/me")
     public ResponseEntity<UserDto> me(
-            @AuthenticationPrincipal OidcUser oidcUser,
-            OAuth2AuthenticationToken authToken) {
-
-        if (oidcUser == null || authToken == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        var provider = authToken.getAuthorizedClientRegistrationId();
-        var subject = oidcUser.getName();
-
-        var localUser = _userRepository.findByOauthProviderAndOauthSubject(provider, subject);
-        if (localUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        var user = localUser.get();
+        @AuthenticationPrincipal OidcUser oidcUser,
+        OAuth2AuthenticationToken authToken
+    ) {
+        var user = authenticatedUserResolver.resolve(oidcUser, authToken);
         var dto = new UserDto(user.getId(), user.getEmail(), user.getDisplayName(), user.getOauthProvider());
         return ResponseEntity.ok(dto);
     }

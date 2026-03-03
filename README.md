@@ -1,5 +1,10 @@
 # Jargoyle
 
+[![CI](https://github.com/WayneKoorts/Jargoyle/actions/workflows/ci.yml/badge.svg)](https://github.com/WayneKoorts/Jargoyle/actions/workflows/ci.yml)
+[![Licence](https://img.shields.io/github/license/WayneKoorts/Jargoyle)](LICENCE)
+![Java](https://img.shields.io/badge/Java-25-blue)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.3-green)
+
 *Guarding you from the fine print.*
 
 Jargoyle is a document explanation tool. Upload everyday documents — phone bills, insurance policies, rental agreements, bank terms — and get a plain-English summary with key facts highlighted. Then ask follow-up questions in a conversational chat, with every answer grounded in your actual document.

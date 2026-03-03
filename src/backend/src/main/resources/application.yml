@@ -34,3 +34,12 @@ spring:
     exclude:
       - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
       - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+
+jargoyle:
+  async:
+    document-processing:
+      core-pool-size: 2
+      max-pool-size: 5
+      queue-capacity: 25
+      thread-name-prefix: doc-processing
+      

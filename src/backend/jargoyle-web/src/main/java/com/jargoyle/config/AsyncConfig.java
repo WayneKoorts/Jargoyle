@@ -7,7 +7,7 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-import com.jargoyle.properties.DocumentProcessingProperties;
+import com.jargoyle.service.properties.DocumentProcessingProperties;
 
 @Configuration
 @EnableAsync

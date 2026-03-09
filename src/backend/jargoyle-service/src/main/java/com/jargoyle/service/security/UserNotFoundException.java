@@ -1,4 +1,4 @@
-package com.jargoyle.security;
+package com.jargoyle.service.security;
 
 public class UserNotFoundException extends RuntimeException {
     public UserNotFoundException(String provider, String subject) {

@@ -4,7 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import com.jargoyle.security.UserNotFoundException;
+import com.jargoyle.service.security.UserNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {

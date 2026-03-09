@@ -6,13 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Jargoyle is a document explanation tool — users upload documents (PDFs, images, text) and receive plain-English explanations with follow-up Q&A powered by AI (Spring AI + RAG). It's a **learning/portfolio project** demonstrating Spring Boot, Spring AI, OAuth2, and a React SPA.
 
-Because this is a learning project, prefer clear, explicit code over clever abstractions. Add brief comments explaining *why* something works when the pattern might be unfamiliar (e.g. Spring annotations, security filter chains). Avoid hiding complexity behind layers of indirection — the goal is for the code to be a readable reference.
+Because this is a learning project:
+- **Explain as you go**: When making changes, explain the Spring/Java concepts, patterns, and trade-offs involved — not just *what* you're doing but *why*. Assume the developer is experienced in other languages (e.g. C#) but learning Java and the Spring ecosystem.
+- **Prefer clear, explicit code** over clever abstractions. Avoid hiding complexity behind layers of indirection — the goal is for the code to be a readable reference.
+- **Add brief comments** explaining *why* something works when the pattern might be unfamiliar (e.g. Spring annotations, security filter chains).
+- **Flag gotchas and conventions** that differ from what a C# developer might expect (e.g. checked exceptions, annotation-driven DI, Gradle vs MSBuild idioms).
 
 The full specification lives in `design/jargoyle-spec.md`.
 
 ## Repository Structure
 
-- `src/backend/` — Spring Boot application (Gradle, Java)
+- `src/backend/` — Gradle multi-project build
+  - `jargoyle-model/` — JPA entities, DTOs, enums
+  - `jargoyle-repository/` — Spring Data JPA repositories
+  - `jargoyle-service/` — Business logic, security resolution, storage, text extraction
+  - `jargoyle-web/` — Spring Boot application (controllers, config, entry point)
 - `src/frontend/` — React SPA (not yet scaffolded)
 - `design/` — Project specification and design documents
 
@@ -26,28 +34,28 @@ The full specification lives in `design/jargoyle-spec.md`.
 All backend commands run from `src/backend/`:
 
 ```bash
-./gradlew build          # Compile, test, and package
-./gradlew test           # Run tests only
-./gradlew bootRun        # Start the application
-./gradlew dependencies   # View dependency tree
+./gradlew build                    # Compile, test, and package all sub-projects
+./gradlew test                     # Run tests across all sub-projects
+./gradlew :jargoyle-web:bootRun    # Start the application
+./gradlew dependencies             # View dependency tree
 ```
 
 Run a single test class:
 ```bash
-./gradlew test --tests "com.jargoyle.SomeTests"
+./gradlew :jargoyle-service:test --tests "com.jargoyle.SomeTests"
 ```
 
 ## Backend Architecture
 
 - **Package root**: `com.jargoyle`
-- **Entry point**: `JargoyleApplication.java`
-- **Database migrations**: Flyway, migration files go in `src/main/resources/db/migration/`
+- **Entry point**: `jargoyle-web/.../JargoyleApplication.java`
+- **Database migrations**: Flyway, migration files go in `jargoyle-web/src/main/resources/db/migration/`
 - **Test naming**: `*Tests` suffix (e.g. `JargoyleApplicationTests`)
 - **Integration tests**: Testcontainers with PostgreSQL
 
 Auto-configuration for DataSource, Hibernate, and Flyway is excluded in `application.yml` until a database is configured. Remove those exclusions when PostgreSQL is available.
 
-`SecurityConfig.java` is a temporary permit-all filter chain — replace it when implementing OAuth2.
+`SecurityConfig.java` in `jargoyle-web` configures OAuth2/OIDC login with a custom user service.
 
 ## Conventions
 

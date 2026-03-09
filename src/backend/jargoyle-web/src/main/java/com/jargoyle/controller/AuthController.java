@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.jargoyle.dto.UserDto;
-import com.jargoyle.security.AuthenticatedUserResolver;
+import com.jargoyle.service.security.AuthenticatedUserResolver;
 
 import jakarta.servlet.http.HttpServletRequest;
 

@@ -1,4 +1,4 @@
-package com.jargoyle.properties;
+package com.jargoyle.service.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

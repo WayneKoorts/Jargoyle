@@ -4,17 +4,41 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7"
 }
 
-group = "com.jargoyle"
-version = "0.0.1-SNAPSHOT"
+allprojects {
+    group = "com.jargoyle"
+    version = "0.0.1-SNAPSHOT"
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply(plugin = "java-library")
+    apply(plugin = "io.spring.dependency-management")
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
+        }
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom("org.springframework.boot:spring-boot-dependencies:4.0.3")
+            mavenBom("org.testcontainers:testcontainers-bom:1.20.4")
+        }
+    }
+
+    tasks.withType<Test> {
+        useJUnitPlatform()
+    }
+}
 
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
     }
-}
-
-repositories {
-    mavenCentral()
 }
 
 dependencyManagement {
@@ -24,6 +48,13 @@ dependencyManagement {
 }
 
 dependencies {
+    // Sub-projects
+    implementation(project(":jargoyle-model"))
+    implementation(project(":jargoyle-repository"))
+    implementation(project(":jargoyle-service"))
+
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+
     // Web
     implementation("org.springframework.boot:spring-boot-starter-web")
 

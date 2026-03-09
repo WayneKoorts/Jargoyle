@@ -14,26 +14,26 @@ import com.jargoyle.repository.UserRepository;
 
 @Service
 public class CustomOidcUserService extends OidcUserService {
-    private UserRepository _userRepository;
+    private final UserRepository userRepository;
 
     CustomOidcUserService(UserRepository userRepository) {
-        this._userRepository = userRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
     public OidcUser loadUser(OidcUserRequest userRequest) {
     var providerName = userRequest.getClientRegistration().getRegistrationId();
-        if (providerName.isEmpty() || providerName.isBlank()) {
+        if (providerName.isBlank()) {
             throw new OAuth2AuthenticationException("Provider not specified.");
         }
         
         var loadedUser = super.loadUser(userRequest);        
         var subjectName = loadedUser.getName(); // Returns the "sub" attribute, not the "name" attribute.
-        if (subjectName.isEmpty() || subjectName.isBlank()) {
+        if (subjectName.isBlank()) {
             throw new OAuth2AuthenticationException("Subject name not specified.");
         }
 
-        var localUser = _userRepository.findByOauthProviderAndOauthSubject(providerName, subjectName);
+        var localUser = userRepository.findByOauthProviderAndOauthSubject(providerName, subjectName);
         if (localUser.isPresent()) {
             updateUserLoginTime(localUser);
             
@@ -49,7 +49,7 @@ public class CustomOidcUserService extends OidcUserService {
         localUser.get().setLastLoginAt(Instant.now());
 
         try {
-            _userRepository.save(localUser.get());
+            userRepository.save(localUser.get());
         } catch (Exception ex) {
             throw new OAuth2AuthenticationException(ex.getMessage());
         }
@@ -70,7 +70,7 @@ public class CustomOidcUserService extends OidcUserService {
         newUser.setEmail((String) email);
 
         try {
-            _userRepository.save(newUser);
+            userRepository.save(newUser);
         } catch (Exception ex) {
             throw new OAuth2AuthenticationException(ex.getMessage());
         }

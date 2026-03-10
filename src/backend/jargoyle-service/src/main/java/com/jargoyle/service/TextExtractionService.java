@@ -11,10 +11,8 @@ import org.springframework.stereotype.Service;
 public class TextExtractionService {
 
     public String extractText(InputStream pdfContent) throws IOException {
-        var pdfDoc = Loader.loadPDF(pdfContent.readAllBytes());
-        var textStripper = new PDFTextStripper();
-        var pdfText = textStripper.getText(pdfDoc);
-
-        return pdfText;
+        try (var pdfDoc = Loader.loadPDF(pdfContent.readAllBytes())) {
+            return new PDFTextStripper().getText(pdfDoc);
+        }
     }
 }

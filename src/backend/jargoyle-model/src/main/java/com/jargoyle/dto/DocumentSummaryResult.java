@@ -1,5 +1,7 @@
 package com.jargoyle.dto;
 
+import java.util.List;
+
 /**
  * Internal DTO for passing the LLM's structured summary response between services.
  * Not exposed via the API — {@code DocumentProcessingService} unpacks the fields
@@ -7,9 +9,9 @@ package com.jargoyle.dto;
  * {@link com.jargoyle.entity.DocumentSummary DocumentSummary} entities.
  */
 public record DocumentSummaryResult(
-    String plainSummary,
-    String keyFacts,       // JSON
-    String flaggedTerms,   // JSON
-    String title,          // LLM-generated title
-    String documentType    // LLM-classified type
+        String plainSummary,
+        KeyFacts keyFacts,
+        List<FlaggedTerm> flaggedTerms,
+        String title,
+        String documentType
 ) {}

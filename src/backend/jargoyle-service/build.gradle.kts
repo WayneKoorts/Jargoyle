@@ -9,6 +9,7 @@ dependencies {
     // Spring framework
     implementation("org.springframework:spring-context")
     implementation("org.springframework:spring-core")
+    implementation("org.springframework.ai:spring-ai-starter-model-openai")
 
     // OAuth2 for CustomOidcUserService and AuthenticatedUserResolver
     implementation("org.springframework.security:spring-security-oauth2-client")

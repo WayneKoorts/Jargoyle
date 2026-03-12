@@ -9,6 +9,7 @@ allprojects {
 
     repositories {
         mavenCentral()
+        maven { url = uri("https://repo.spring.io/milestone") }
     }
 }
 
@@ -19,6 +20,7 @@ subprojects {
         imports {
             mavenBom("org.springframework.boot:spring-boot-dependencies:4.0.3")
             mavenBom("org.testcontainers:testcontainers-bom:1.20.4")
+            mavenBom("org.springframework.ai:spring-ai-bom:2.0.0-M2")
         }
     }
 
@@ -31,6 +33,8 @@ subprojects {
 
         tasks.withType<Test> {
             useJUnitPlatform()
+            // Suppress Mockito deprecation warning for now.
+            jvmArgs("-XX:+EnableDynamicAgentLoading")
         }
     }
 }

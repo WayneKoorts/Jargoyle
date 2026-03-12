@@ -1,5 +1,8 @@
 package com.jargoyle.entity;
 
+import java.util.Arrays;
+import java.util.List;
+
 public enum DocumentType {
     BILL,
     INSURANCE,
@@ -10,5 +13,11 @@ public enum DocumentType {
     GOVERNMENT,
     MEDICAL,
     TAX,
-    OTHER
+    OTHER;
+
+    public static List<String> names() {
+        return Arrays.stream(values())
+                .map(Enum::name)
+                .toList();
+    }
 }

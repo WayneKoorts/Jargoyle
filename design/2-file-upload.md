@@ -410,7 +410,7 @@ public interface StorageService {
 The Phase 1 implementation of `StorageService`. Activated via `@Profile("dev")` or as the default (only implementation present).
 
 - **Storage root**: Configurable via `jargoyle.storage.local.root-dir` (defaults to `./data/uploads`)
-- **Directory structure**: `{root}/{userId}/{documentId}/{originalFilename}` — organises files by user and document, making cleanup on delete straightforward
+- **Directory structure**: `{root}/{documentId}/{originalFilename}` — organises files by user and document, making cleanup on delete straightforward
 - **File naming**: Preserves the original filename for readability. The `documentId` directory provides uniqueness, so filename collisions aren't possible.
 
 #### `TextExtractionService`

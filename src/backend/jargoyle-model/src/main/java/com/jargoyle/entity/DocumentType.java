@@ -20,4 +20,12 @@ public enum DocumentType {
                 .map(Enum::name)
                 .toList();
     }
+
+    public static DocumentType fromString(String value) {
+        try {
+            return valueOf(value);
+        } catch (IllegalArgumentException e) {
+            return DocumentType.OTHER;
+        }
+    }
 }

@@ -60,7 +60,6 @@ public class DocumentProcessingService {
             SummaryGenerationService summaryGenerationService,
             DocumentStatusNotifier documentStatusNotifier,
             StorageService storageService,
-            @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
             ObjectMapper objectMapper) {
 
         this.documentRepository = documentRepository;

@@ -37,3 +37,8 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+springdoc:
+  swagger-ui:
+    enabled: true
+  default-flat-param-object: true

@@ -1,14 +1,18 @@
 package com.jargoyle.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
 import com.jargoyle.service.exception.DocumentNotFoundException;
 import com.jargoyle.service.security.UserNotFoundException;
+import com.jargoyle.service.storage.StorageSaveException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<String> handleUserNotFound(UserNotFoundException ex) {
@@ -23,6 +27,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DocumentNotFoundException.class)
     public ResponseEntity<String> handleDocumentNotFound(DocumentNotFoundException ex) {
         return ResponseEntity.notFound().build();
+    }
+
+    @ExceptionHandler(StorageSaveException.class)
+    public ResponseEntity<String> handleStorageSaveException(StorageSaveException ex) {
+        log.error("Error saving to storage", ex);
+        return ResponseEntity.internalServerError().body(ex.getMessage());
     }
 
 }

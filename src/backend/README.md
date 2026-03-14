@@ -41,6 +41,18 @@ Run these from `src/backend/`:
 ./gradlew bootRun    # Start the application
 ```
 
+## API Testing (Dev Only)
+
+When running with the `dev` profile, you can authenticate without going through OAuth by calling the dev login endpoint:
+
+```
+POST http://localhost:8080/api/dev/login
+```
+
+This creates a test user and returns a session cookie (`JSESSIONID`). Include that cookie in subsequent requests to access authenticated endpoints. Most API clients (Postman, Insomnia, HTTPie, etc.) handle cookies automatically — just make sure cookie storage is enabled.
+
+This endpoint only exists in the `dev` profile. In production, it returns 404.
+
 ## Stopping
 
 Stop the containers with the same profile you used to start them:

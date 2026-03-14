@@ -42,6 +42,9 @@ public class SecurityConfig {
                 // Allow unauthenticated calls so the SPA gets a 401 JSON response
                 // instead of being redirected to the OAuth login page.
                 .requestMatchers("/api/auth/me").permitAll()
+                // Dev-only login endpoint — no controller is registered outside the
+                // "dev" profile, so this harmlessly matches nothing in production.
+                .requestMatchers("/api/dev/**").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth -> oauth

@@ -10,6 +10,9 @@ import com.jargoyle.entity.InputType;
 import com.jargoyle.repository.DocumentSummaryRepository;
 import com.jargoyle.repository.UserRepository;
 import com.jargoyle.service.storage.StorageSaveException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,6 +26,7 @@ import java.util.UUID;
 @Service
 public class DocumentService {
 
+    private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
     private final UserRepository userRepository;
     private final DocumentRepository documentRepository;
     private final DocumentSummaryRepository documentSummaryRepository;
@@ -44,6 +48,7 @@ public class DocumentService {
     }
 
     public DocumentResponse upload(DocumentUploadRequest request) throws StorageSaveException {
+        log.debug("Received upload request");
         return switch (request) {
             case DocumentUploadRequest.PdfDocumentUpload pdfUploadRequest -> handlePdfUpload(pdfUploadRequest);
             case DocumentUploadRequest.TextDocumentUpload textUploadRequest -> handleTextUpload(textUploadRequest);
@@ -91,6 +96,7 @@ public class DocumentService {
             document.setStorageKey(storageKey);
             documentRepository.save(document);
         } catch (StorageSaveException ex) {
+            log.error("Document upload failed", ex);
             document.setStatus(DocumentStatus.FAILED);
             document.setErrorMessage("Failed to store file: " + ex.getMessage());
             documentRepository.save(document);
@@ -128,6 +134,7 @@ public class DocumentService {
      */
     private DocumentResponse submitForProcessing(Document document) {
         // Hand off to DocumentProcessingService for async processing.
+        log.debug("Submitting document to DocumentProcessingService");
         documentProcessingService.processDocument(document.getId());
 
         return toDocumentResponse(document);

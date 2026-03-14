@@ -25,9 +25,7 @@ jobs:
         run: ./gradlew test
 
       - name: Test report
-        uses: dorny/test-reporter@v2
+        uses: mikepenz/action-junit-report@v6
         if: always()
         with:
-          name: Test Results
-          path: src/backend/**/build/test-results/test/*.xml
-          reporter: java-junit
+          report_paths: src/backend/**/build/test-results/test/*.xml

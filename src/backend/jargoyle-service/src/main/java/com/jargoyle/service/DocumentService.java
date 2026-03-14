@@ -56,7 +56,9 @@ public class DocumentService {
     }
 
     public DocumentResponse getById(UUID userId, UUID documentId) {
-        return null;
+        return documentRepository.findById(documentId)
+            .map(doc -> toDocumentResponse(doc))
+            .orElse(null);
     }
 
     public Page<DocumentListResponse> list(UUID userId, Pageable pageable) {

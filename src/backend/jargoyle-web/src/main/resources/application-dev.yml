@@ -4,12 +4,6 @@
 
 spring:
 
-  logging:
-    level:
-      com.jargoyle: DEBUG
-      org.springframework: INFO
-      org.hibernate.SQL: DEBUG
-
   # Redirect to the Vite dev server after OAuth login.
   # In production, the default "/" serves the SPA from the backend itself.
   oauth-success-url: http://localhost:5173/
@@ -37,6 +31,12 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+logging:
+    level:
+      com.jargoyle: DEBUG
+      org.springframework: INFO
+      org.hibernate.SQL: DEBUG
 
 springdoc:
   swagger-ui:

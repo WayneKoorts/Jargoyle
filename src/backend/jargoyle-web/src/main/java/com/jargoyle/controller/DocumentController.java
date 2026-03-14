@@ -43,7 +43,7 @@ public class DocumentController {
         this.sseEmitterRegistry = sseEmitterRegistry;
     }
 
-    @GetMapping("/")
+    @GetMapping()
     public ResponseEntity<Page<DocumentListResponse>> list(
         @CurrentUser User user,
         Pageable pageable) {

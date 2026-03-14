@@ -23,3 +23,11 @@ jobs:
       - name: Run tests
         working-directory: src/backend
         run: ./gradlew test
+
+      - name: Test report
+        uses: dorny/test-reporter@v2
+        if: always()
+        with:
+          name: Test Results
+          path: src/backend/**/build/test-results/test/*.xml
+          reporter: java-junit

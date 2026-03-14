@@ -6,9 +6,11 @@ import com.jargoyle.dto.DocumentSummaryResponse;
 import com.jargoyle.dto.DocumentUpdateRequest;
 import com.jargoyle.entity.Document;
 import com.jargoyle.entity.DocumentStatus;
+import com.jargoyle.entity.DocumentType;
 import com.jargoyle.entity.InputType;
 import com.jargoyle.repository.DocumentSummaryRepository;
 import com.jargoyle.repository.UserRepository;
+import com.jargoyle.service.exception.DocumentNotFoundException;
 import com.jargoyle.service.storage.StorageSaveException;
 
 import org.slf4j.Logger;
@@ -56,21 +58,41 @@ public class DocumentService {
     }
 
     public DocumentResponse getById(UUID userId, UUID documentId) {
-        return documentRepository.findById(documentId)
-            .map(doc -> toDocumentResponse(doc))
-            .orElse(null);
+        log.debug("Retrieving document {} for user {}", documentId, userId);
+        return documentRepository.findByIdAndUserId(documentId, userId)
+            .map(this::toDocumentResponse)
+            .orElseThrow(() -> new DocumentNotFoundException(documentId));
     }
 
     public Page<DocumentListResponse> list(UUID userId, Pageable pageable) {
-        return null;
+        log.debug("Getting document list for user {}", userId);
+        return documentRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
+            .map(d -> new DocumentListResponse(
+                d.getId(),
+                d.getTitle(),
+                d.getDocumentType().toString(),
+                d.getInputType().toString(),
+                d.getStatus().toString(),
+                d.getCreatedAt()));
     }
 
     public DocumentResponse update(UUID userId, UUID documentId, DocumentUpdateRequest request) {
-        return null;
+        log.debug("Updating document {}", documentId);
+        var document = documentRepository.findByIdAndUserId(documentId, userId)
+            .orElseThrow(() -> {
+                log.warn("Unable to update document {} as it can't be found", documentId);
+                return new DocumentNotFoundException(documentId);
+            });
+
+        document.setTitle(request.title());
+        document.setDocumentType(DocumentType.fromString(request.documentType()));
+        documentRepository.save(document);
+
+        return toDocumentResponse(document);
     }
 
     public void delete(UUID userId, UUID documentId) {
-
+        documentRepository.deleteByIdAndUserId(documentId, userId);
     }
 
     /**

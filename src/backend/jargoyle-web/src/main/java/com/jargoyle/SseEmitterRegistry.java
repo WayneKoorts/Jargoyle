@@ -25,6 +25,10 @@ public class SseEmitterRegistry implements DocumentStatusNotifier {
     public void register(UUID documentId, SseEmitter emitter) {
         var registeredEmittersForDoc = emitterRegistry.computeIfAbsent(documentId, key -> new CopyOnWriteArrayList<>());
         registeredEmittersForDoc.add(emitter);
+        emitter.onTimeout(() -> {
+            log.debug("Emitter {} timed out, removing from registry", emitter);
+            registeredEmittersForDoc.remove(emitter);
+        });
         log.info("Registered emitter \"{}\" for document ID \"{}\"", emitter, documentId);
     }
 

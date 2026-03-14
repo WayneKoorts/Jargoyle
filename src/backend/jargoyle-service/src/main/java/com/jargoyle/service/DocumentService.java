@@ -70,8 +70,8 @@ public class DocumentService {
             .map(d -> new DocumentListResponse(
                 d.getId(),
                 d.getTitle(),
-                d.getDocumentType().toString(),
-                d.getInputType().toString(),
+                d.getDocumentType() != null ? d.getDocumentType().toString() : null,
+                d.getInputType() != null ? d.getInputType().toString() : null,
                 d.getStatus().toString(),
                 d.getCreatedAt()));
     }

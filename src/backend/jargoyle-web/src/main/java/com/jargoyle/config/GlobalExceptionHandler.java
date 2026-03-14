@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.jargoyle.service.exception.DocumentNotFoundException;
 import com.jargoyle.service.security.UserNotFoundException;
 
 @RestControllerAdvice
@@ -17,6 +18,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<String> handleBadArgument(IllegalArgumentException ex) {
         return ResponseEntity.badRequest().body(ex.getMessage());
+    }
+
+    @ExceptionHandler(DocumentNotFoundException.class)
+    public ResponseEntity<String> handleDocumentNotFound(DocumentNotFoundException ex) {
+        return ResponseEntity.notFound().build();
     }
 
 }

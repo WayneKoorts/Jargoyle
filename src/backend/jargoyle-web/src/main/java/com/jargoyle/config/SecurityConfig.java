@@ -5,6 +5,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
@@ -15,6 +16,8 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 import com.jargoyle.service.CustomOidcUserService;
 
 @Configuration
+// Enables @PreAuthorize and @PostAuthorize on controller/service methods.
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final CustomOidcUserService _customOidcUserService;
@@ -45,6 +48,10 @@ public class SecurityConfig {
                 // Dev-only login endpoint — no controller is registered outside the
                 // "dev" profile, so this harmlessly matches nothing in production.
                 .requestMatchers("/api/dev/**").permitAll()
+                // Admin endpoints require the ADMIN role. This URL-based rule
+                // provides defence-in-depth on top of any @PreAuthorize annotations
+                // on individual controller methods.
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth -> oauth

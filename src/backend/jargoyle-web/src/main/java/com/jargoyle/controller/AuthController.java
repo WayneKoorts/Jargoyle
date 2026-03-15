@@ -37,7 +37,13 @@ public class AuthController {
         OAuth2AuthenticationToken authToken
     ) {
         var user = authenticatedUserResolver.resolve(oidcUser, authToken);
-        var dto = new UserDto(user.getId(), user.getEmail(), user.getDisplayName(), user.getOauthProvider());
+        var dto = new UserDto(
+            user.getId(),
+            user.getEmail(),
+            user.getDisplayName(),
+            user.getOauthProvider(),
+            user.getRole()
+            .name());
         return ResponseEntity.ok(dto);
     }
 

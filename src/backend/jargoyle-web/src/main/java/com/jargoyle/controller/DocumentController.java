@@ -9,9 +9,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -23,10 +26,13 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.jargoyle.SseEmitterRegistry;
 import com.jargoyle.dto.DocumentListResponse;
 import com.jargoyle.dto.DocumentResponse;
+import com.jargoyle.dto.DocumentUpdateRequest;
 import com.jargoyle.entity.User;
 import com.jargoyle.service.DocumentService;
 import com.jargoyle.service.DocumentUploadRequest;
 import com.jargoyle.service.storage.StorageSaveException;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/documents")
@@ -105,6 +111,27 @@ public class DocumentController {
         }
 
         return ResponseEntity.accepted().body(createdDocument);
+    }
+
+    @PatchMapping("/{documentId}")
+    public ResponseEntity<DocumentResponse> update(
+        @CurrentUser User user,
+        @PathVariable UUID documentId,
+        @Valid @RequestBody DocumentUpdateRequest updateRequest) {
+
+        var updatedDoc = documentService.update(user.getId(), documentId, updateRequest);
+
+        return ResponseEntity.ok(updatedDoc);
+    }
+
+    @DeleteMapping("/{documentId}")
+    public ResponseEntity<Void> delete(
+        @CurrentUser User user,
+        @PathVariable UUID documentId) {
+        
+        documentService.delete(user.getId(), documentId);
+
+        return ResponseEntity.noContent().build();
     }
 
 }

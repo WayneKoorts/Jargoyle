@@ -84,8 +84,17 @@ public class DocumentService {
                 return new DocumentNotFoundException(documentId);
             });
 
-        document.setTitle(request.title());
-        document.setDocumentType(DocumentType.fromString(request.documentType()));
+        request.title()
+            .map(String::trim)
+            .filter(title -> !title.isEmpty())
+            .ifPresent(document::setTitle);
+
+        request.documentType()
+            .map(String::trim)
+            .filter(type -> !type.isEmpty())
+            .map(DocumentType::fromString)
+            .ifPresent(document::setDocumentType);
+        
         documentRepository.save(document);
 
         return toDocumentResponse(document);

@@ -49,9 +49,17 @@ When running with the `dev` profile, you can authenticate without going through 
 POST http://localhost:8080/api/dev/login
 ```
 
-This creates a test user and returns a session cookie (`JSESSIONID`). Include that cookie in subsequent requests to access authenticated endpoints. Most API clients (Postman, Insomnia, HTTPie, etc.) handle cookies automatically — just make sure cookie storage is enabled.
+This creates a test user with the `USER` role and returns a session cookie (`JSESSIONID`). Include that cookie in subsequent requests to access authenticated endpoints. Most API clients (Postman, Insomnia, HTTPie, etc.) handle cookies automatically — just make sure cookie storage is enabled.
 
-This endpoint only exists in the `dev` profile. In production, it returns 404.
+To test admin-only features, use the admin login endpoint instead:
+
+```
+POST http://localhost:8080/api/dev/login-admin
+```
+
+This creates a separate test user with the `ADMIN` role, granting access to `/api/admin/**` endpoints and the admin dashboard UI.
+
+Both endpoints only exist in the `dev` profile. In production, they return 404.
 
 ## Stopping
 

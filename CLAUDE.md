@@ -12,7 +12,7 @@ Because this is a learning project:
 - **Add brief comments** explaining *why* something works when the pattern might be unfamiliar (e.g. Spring annotations, security filter chains).
 - **Flag gotchas and conventions** that differ from what a C# developer might expect (e.g. checked exceptions, annotation-driven DI, Gradle vs MSBuild idioms).
 
-The full specification lives in `design/jargoyle-spec.md`.
+The full specification lives in `design/1-jargoyle-spec.md`. Phase-specific design documents (e.g. `design/2-file-upload.md`) cover implementation details for each milestone.
 
 ## Repository Structure
 
@@ -21,13 +21,13 @@ The full specification lives in `design/jargoyle-spec.md`.
   - `jargoyle-repository/` — Spring Data JPA repositories
   - `jargoyle-service/` — Business logic, security resolution, storage, text extraction
   - `jargoyle-web/` — Spring Boot application (controllers, config, entry point)
-- `src/frontend/` — React SPA (not yet scaffolded)
+- `src/frontend/` — React SPA (React 19, TypeScript, Vite, Tailwind CSS)
 - `design/` — Project specification and design documents
 
 ## Tech Stack
 
-**Backend**: Java 25, Spring Boot 4.0.3, Gradle 9.3.1 (Kotlin DSL), PostgreSQL + pgvector
-**Frontend** (planned): React 18, TypeScript, Vite, Tailwind CSS
+**Backend**: Java 25, Spring Boot 4.0.3, Gradle 9.3.1 (Kotlin DSL), PostgreSQL (+ pgvector planned)
+**Frontend**: React 19, TypeScript 5.9, Vite 7.3, Tailwind CSS 4.2
 
 ## Build Commands
 
@@ -43,6 +43,16 @@ All backend commands run from `src/backend/`:
 Run a single test class:
 ```bash
 ./gradlew :jargoyle-service:test --tests "com.jargoyle.SomeTests"
+```
+
+Frontend commands run from `src/frontend/`:
+
+```bash
+npm install          # Install dependencies
+npm run dev          # Start dev server (Vite)
+npm run build        # Production build
+npm run lint         # Run ESLint
+npm run preview      # Preview production build locally
 ```
 
 ## Backend Architecture

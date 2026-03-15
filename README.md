@@ -11,26 +11,37 @@ Jargoyle is a document explanation tool. Upload everyday documents — phone bil
 
 ## Tech Stack
 
-**Backend:** Java 25, Spring Boot 4, Gradle (Kotlin DSL), PostgreSQL + pgvector, Spring AI, Flyway
+**Backend:** Java 25, Spring Boot 4, Gradle (Kotlin DSL), PostgreSQL (+ pgvector planned), Spring AI, Flyway
 
-**Frontend:** React 18, TypeScript, Vite, Tailwind CSS
+**Frontend:** React 19, TypeScript, Vite, Tailwind CSS
 
 ## Getting Started
 
 ### Prerequisites
 
 - Java 25
-- PostgreSQL with the pgvector extension
+- PostgreSQL (pgvector extension needed later for RAG/embeddings)
+- Node.js (for the frontend)
 
 ### Build & Run
 
-All commands run from `src/backend/`:
+**Backend** — all commands run from `src/backend/`:
 
 ```bash
 ./gradlew build      # Compile, test, and package
 ./gradlew test       # Run tests only
 ./gradlew bootRun    # Start the application
 ```
+
+**Frontend** — all commands run from `src/frontend/`:
+
+```bash
+npm install          # Install dependencies
+npm run dev          # Start dev server
+npm run build        # Production build
+```
+
+**Docker Compose** — a `compose.yml` is provided at the project root for local services (e.g. PostgreSQL).
 
 ## Repository Structure
 
@@ -44,7 +55,7 @@ jargoyle/
 
 ## Further Reading
 
-See [`design/jargoyle-spec.md`](design/jargoyle-spec.md) for the full project specification.
+See [`design/1-jargoyle-spec.md`](design/1-jargoyle-spec.md) for the full project specification.
 
 ## Licence
 

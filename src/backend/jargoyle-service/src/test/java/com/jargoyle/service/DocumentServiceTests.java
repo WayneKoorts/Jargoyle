@@ -190,7 +190,7 @@ public class DocumentServiceTests {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(mockDocumentSummaryRepository.findByDocumentId(any()))
                 .thenReturn(Optional.empty());
-        var request = new DocumentUpdateRequest("New Title", "BILL");
+        var request = new DocumentUpdateRequest(Optional.of("New Title"), Optional.of("BILL"));
 
         var result = sut.update(USER_ID, DOCUMENT_ID, request);
 
@@ -208,7 +208,7 @@ public class DocumentServiceTests {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(mockDocumentSummaryRepository.findByDocumentId(any()))
                 .thenReturn(Optional.empty());
-        var request = new DocumentUpdateRequest("Updated Title", "MORTGAGE");
+        var request = new DocumentUpdateRequest(Optional.of("Updated Title"), Optional.of("MORTGAGE"));
 
         sut.update(USER_ID, DOCUMENT_ID, request);
 
@@ -227,7 +227,7 @@ public class DocumentServiceTests {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(mockDocumentSummaryRepository.findByDocumentId(any()))
                 .thenReturn(Optional.empty());
-        var request = new DocumentUpdateRequest("Title", "NONSENSE");
+        var request = new DocumentUpdateRequest(Optional.of("Title"), Optional.of("NONSENSE"));
 
         var result = sut.update(USER_ID, DOCUMENT_ID, request);
 
@@ -238,7 +238,7 @@ public class DocumentServiceTests {
     void update_documentNotFound_throwsDocumentNotFoundException() {
         when(mockDocumentRepository.findByIdAndUserId(DOCUMENT_ID, USER_ID))
                 .thenReturn(Optional.empty());
-        var request = new DocumentUpdateRequest("Title", "BILL");
+        var request = new DocumentUpdateRequest(Optional.of("Title"), Optional.of("BILL"));
 
         assertThatThrownBy(() -> sut.update(USER_ID, DOCUMENT_ID, request))
                 .isInstanceOf(DocumentNotFoundException.class)

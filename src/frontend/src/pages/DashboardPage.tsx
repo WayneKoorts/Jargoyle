@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { UserProfile } from '../api/auth'
+import DocumentList from '../components/DocumentList'
 
 interface DashboardPageProps {
   user: UserProfile
@@ -30,13 +31,11 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
         </div>
       </header>
 
-      <div className="mx-auto max-w-3xl px-6 py-12 text-center">
-        <h2 className="text-2xl font-bold text-slate-900">
-          Welcome, {user.displayName}
-        </h2>
-        <p className="mt-2 text-slate-500">
-          Your documents will appear here once uploading is available.
-        </p>
+      <div className="mx-auto max-w-4xl px-6 py-8">
+        <h2 className="text-2xl font-bold text-slate-900">Your Documents</h2>
+        <div className="mt-6">
+          <DocumentList />
+        </div>
       </div>
     </main>
   )

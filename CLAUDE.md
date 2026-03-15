@@ -65,7 +65,9 @@ npm run preview      # Preview production build locally
 
 Auto-configuration for DataSource, Hibernate, and Flyway is excluded in `application.yml` until a database is configured. Remove those exclusions when PostgreSQL is available.
 
-`SecurityConfig.java` in `jargoyle-web` configures OAuth2/OIDC login with a custom user service.
+`SecurityConfig.java` in `jargoyle-web` configures OAuth2/OIDC login with a custom user service. It also enables `@EnableMethodSecurity` for `@PreAuthorize` support and enforces role-based access on `/api/admin/**` (requires `ADMIN` role).
+
+Users have a `role` field (`Role` enum: `USER`, `ADMIN`) stored as a string in the database. The `CustomOidcUserService` injects the local role as a `GrantedAuthority` into the Spring Security context on login, so `hasRole('ADMIN')` works natively throughout the app.
 
 ## Conventions
 

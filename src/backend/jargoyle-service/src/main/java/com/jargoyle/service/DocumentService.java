@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.jargoyle.repository.DocumentRepository;
 import com.jargoyle.service.storage.StorageService;
@@ -100,6 +101,7 @@ public class DocumentService {
         return toDocumentResponse(document);
     }
 
+    @Transactional
     public void delete(UUID userId, UUID documentId) {
         documentRepository.deleteByIdAndUserId(documentId, userId);
     }

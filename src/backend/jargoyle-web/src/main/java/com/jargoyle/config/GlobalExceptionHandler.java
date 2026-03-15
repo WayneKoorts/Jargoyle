@@ -3,6 +3,8 @@ package com.jargoyle.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.jargoyle.service.exception.DocumentNotFoundException;
@@ -33,6 +35,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleStorageSaveException(StorageSaveException ex) {
         log.error("Error saving to storage", ex);
         return ResponseEntity.internalServerError().body(ex.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<String> handleValidationException(MethodArgumentNotValidException ex) {
+        var messages = ex.getBindingResult().getAllErrors().stream()
+            .map(ObjectError::getDefaultMessage)
+            .toList();
+
+        return ResponseEntity.badRequest().body(String.join("; ", messages));
     }
 
 }

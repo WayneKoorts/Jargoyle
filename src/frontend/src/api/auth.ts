@@ -5,6 +5,7 @@ export interface UserProfile {
   email: string
   displayName: string
   oauthProvider: string
+  role: string
 }
 
 export function fetchCurrentUser(): Promise<UserProfile> {

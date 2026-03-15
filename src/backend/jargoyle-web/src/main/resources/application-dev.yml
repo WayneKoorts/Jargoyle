@@ -46,3 +46,8 @@ springdoc:
   swagger-ui:
     enabled: true
   default-flat-param-object: true
+
+jargoyle:
+  storage:
+    local:
+      root-dir: C:\\tmp\\jargoyle-storage

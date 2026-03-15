@@ -1,6 +1,21 @@
+import { useState } from 'react'
 import { GOOGLE_AUTH_URL } from '../constants'
+import { apiClient } from '../api/client'
 
 export default function LoginPage() {
+  const [devError, setDevError] = useState<string | null>(null)
+
+  async function devLogin(endpoint: string) {
+    setDevError(null)
+    try {
+      await apiClient(endpoint, { method: 'POST' })
+      // Session cookie is now set — reload so useAuth picks it up
+      window.location.reload()
+    } catch {
+      setDevError('Dev login failed — is the backend running with the "dev" profile?')
+    }
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50">
       <div className="w-full max-w-sm space-y-8 text-center">
@@ -45,6 +60,27 @@ export default function LoginPage() {
         <p className="text-xs text-slate-400">
           No account needed — just sign in with your Google account.
         </p>
+
+        {import.meta.env.DEV && (
+          <div className="space-y-3 border-t border-dashed border-slate-300 pt-6">
+            <p className="text-xs font-medium text-slate-400">Dev login</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => devLogin('/dev/login')}
+                className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+              >
+                Log in as User
+              </button>
+              <button
+                onClick={() => devLogin('/dev/login-admin')}
+                className="flex-1 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 shadow-sm transition-colors hover:bg-amber-100"
+              >
+                Log in as Admin
+              </button>
+            </div>
+            {devError && <p className="text-xs text-red-600">{devError}</p>}
+          </div>
+        )}
       </div>
     </main>
   )

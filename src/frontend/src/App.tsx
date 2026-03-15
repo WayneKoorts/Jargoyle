@@ -3,6 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
+import AdminDashboardPage from './pages/admin/AdminDashboardPage'
+import AdminUsersPage from './pages/admin/AdminUsersPage'
+import AdminDocumentsPage from './pages/admin/AdminDocumentsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,7 +21,7 @@ const queryClient = new QueryClient({
  * and BrowserRouter so it has access to both contexts.
  */
 function AppRoutes() {
-  const { user, isLoading, isAuthenticated, logout } = useAuth()
+  const { user, isLoading, isAuthenticated, isAdmin, logout } = useAuth()
 
   if (isLoading) {
     return (
@@ -35,6 +38,13 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<DashboardPage user={user} onLogout={logout} />} />
+      {isAdmin && (
+        <>
+          <Route path="/admin" element={<AdminDashboardPage user={user} onLogout={logout} />} />
+          <Route path="/admin/users" element={<AdminUsersPage user={user} onLogout={logout} />} />
+          <Route path="/admin/documents" element={<AdminDocumentsPage user={user} onLogout={logout} />} />
+        </>
+      )}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

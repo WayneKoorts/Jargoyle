@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { UserProfile } from '../api/auth'
 
 interface DashboardPageProps {
@@ -11,6 +12,14 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
         <h1 className="text-lg font-semibold text-slate-900">Jargoyle</h1>
         <div className="flex items-center gap-4">
+          {user.role === 'ADMIN' && (
+            <Link
+              to="/admin"
+              className="rounded-md bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-200"
+            >
+              Admin
+            </Link>
+          )}
           <span className="text-sm text-slate-600">{user.displayName}</span>
           <button
             onClick={onLogout}

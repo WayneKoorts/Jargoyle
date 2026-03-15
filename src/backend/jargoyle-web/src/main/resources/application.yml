@@ -18,6 +18,11 @@ spring:
   # The dev profile overrides this to the Vite dev server URL.
   oauth-success-url: /
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
   security:
     oauth2:
       client:

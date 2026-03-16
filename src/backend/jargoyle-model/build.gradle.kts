@@ -11,4 +11,6 @@ dependencies {
 
     // Hibernate annotations (@CreationTimestamp, @UpdateTimestamp)
     implementation("org.hibernate.orm:hibernate-core")
+
+    implementation("org.postgresql:postgresql")
 }

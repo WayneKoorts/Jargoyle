@@ -130,7 +130,7 @@ export default function DocumentList() {
                 </Link>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-                    {DOCUMENT_TYPE_LABELS[doc.documentType] ?? doc.documentType}
+                    {DOCUMENT_TYPE_LABELS[doc.documentType] ?? "UNCATEGORISED"}
                   </span>
                   <span
                     className={`rounded px-2 py-0.5 text-xs font-medium ${statusClasses(doc.status)}`}

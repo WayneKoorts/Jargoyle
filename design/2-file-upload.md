@@ -378,7 +378,7 @@ Each step emits a `ProcessingStatusEvent` to any connected SSE clients via `SseE
 
 If any step throws, the pipeline catches the exception, sets status to `FAILED` with the error message, and emits a failure event.
 
-**Why `@Async` rather than a message queue?** For a portfolio project running locally, `@Async` with a `TaskExecutor` is the right level of complexity. It demonstrates understanding of async processing without the operational overhead of RabbitMQ or SQS. The spec's "production considerations" section already calls this out — at scale you'd move to a queue, but the service interface wouldn't change.
+**Why `@Async` rather than a message queue?** `@Async` with a `TaskExecutor` is the right level of complexity at current scale — it provides async processing without the operational overhead of RabbitMQ or SQS. At higher throughput, a message queue is the natural upgrade path, and the service interface wouldn't need to change.
 
 #### `StorageService` interface
 
@@ -469,7 +469,7 @@ public class AsyncConfig {
 
 **Why a named executor?** Spring's `@Async` uses a default `SimpleAsyncTaskExecutor` that creates a new thread per task with no pooling. A named `ThreadPoolTaskExecutor` gives bounded concurrency (important because each task makes LLM API calls that cost money) and meaningful thread names in logs.
 
-The pool size is small by design — this is a single-user portfolio project. In production, you'd size this based on expected throughput and LLM API rate limits.
+The pool size is conservative by default. Size it based on expected throughput and LLM API rate limits.
 
 ### 3.9 SSE — `SseEmitterRegistry`
 
@@ -659,7 +659,7 @@ Displays a single document at `/documents/{id}`. The content adapts based on the
 **When `FAILED`**:
 - Error message displayed with a "Try again" option (re-upload)
 
-**Polling strategy**: React Query's `refetchInterval` option, set to 2 seconds while the document is in a non-terminal state (`UPLOADING` or `PROCESSING`). Once the status reaches `READY` or `FAILED`, polling stops (`refetchInterval: false`). This is simpler and more reliable than SSE for the initial implementation — SSE with session cookies requires additional configuration (the browser's `EventSource` API doesn't send cookies by default in all contexts), and polling every 2 seconds is perfectly fine for a portfolio project.
+**Polling strategy**: React Query's `refetchInterval` option, set to 2 seconds while the document is in a non-terminal state (`UPLOADING` or `PROCESSING`). Once the status reaches `READY` or `FAILED`, polling stops (`refetchInterval: false`). This is simpler and more reliable than SSE for the initial implementation — SSE with session cookies requires additional configuration (the browser's `EventSource` API doesn't send cookies by default in all contexts), and polling every 2 seconds is perfectly adequate for the initial implementation.
 
 #### Updated `DashboardPage`
 

@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Jargoyle is a document explanation tool — users upload documents (PDFs, images, text) and receive plain-English explanations with follow-up Q&A powered by AI (Spring AI + RAG). It's a **learning/portfolio project** demonstrating Spring Boot, Spring AI, OAuth2, and a React SPA.
+Jargoyle is a document explanation tool — users upload documents (PDFs, images, text) and receive plain-English explanations with follow-up Q&A powered by AI (Spring AI + RAG).
 
-Because this is a learning project:
-- **Explain as you go**: When making changes, explain the Spring/Java concepts, patterns, and trade-offs involved — not just *what* you're doing but *why*. Assume the developer is experienced in other languages (e.g. C#) but learning Java and the Spring ecosystem.
+The developer is experienced in other languages (e.g. C#) but learning Java and the Spring ecosystem. When making changes:
+- **Explain as you go**: Explain the Spring/Java concepts, patterns, and trade-offs involved — not just *what* you're doing but *why*.
 - **Prefer clear, explicit code** over clever abstractions. Avoid hiding complexity behind layers of indirection — the goal is for the code to be a readable reference.
 - **Add brief comments** explaining *why* something works when the pattern might be unfamiliar (e.g. Spring annotations, security filter chains).
 - **Flag gotchas and conventions** that differ from what a C# developer might expect (e.g. checked exceptions, annotation-driven DI, Gradle vs MSBuild idioms).

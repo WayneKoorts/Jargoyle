@@ -8,8 +8,6 @@ A consumer-focused tool that explains everyday documents in plain English. Users
 
 **Positioning**: Regular people, not legal professionals. Existing tools (Spellbook, Kira, LegalOn, Juro) are all priced and designed for corporate legal teams. This fills a genuine gap.
 
-**Portfolio angle**: Demonstrates Spring Boot, Spring AI with RAG, relational data modelling, OAuth2, file handling, and a polished React SPA — all in a project that's immediately understandable to any interviewer.
-
 ---
 
 ## Core User Flow
@@ -133,7 +131,7 @@ A document can have multiple conversations — lets users start fresh threads on
 
 ### Database Choice
 
-**PostgreSQL with pgvector extension.** Keeps everything in one database — relational data and vector embeddings together. For a portfolio project this is ideal: no separate vector store to manage, and it demonstrates that you understand the tradeoffs (pgvector is fine at portfolio scale; you'd evaluate dedicated vector DBs like Pinecone or Weaviate at production scale).
+**PostgreSQL with pgvector extension.** Keeps everything in one database — relational data and vector embeddings together. A single database simplifies operations and deployment. pgvector handles the current scale comfortably; dedicated vector databases (Pinecone, Weaviate) can be evaluated if scale demands it.
 
 ### Spring Data JPA Notes
 
@@ -370,7 +368,7 @@ The summary generation prompt is important to get right. It should:
 ### Screens
 
 #### 1. Landing / Login
-Clean, consumer-friendly landing. Hero section with Jargoyle branding — a friendly gargoyle mascot perched on a stack of documents. Tagline: "Confused by your phone bill? Jargoyle explains it in plain English." Single OAuth login button (Google to start; GitHub for the developer audience reviewing your portfolio).
+Clean, consumer-friendly landing. Hero section with Jargoyle branding — a friendly gargoyle mascot perched on a stack of documents. Tagline: "Confused by your phone bill? Jargoyle explains it in plain English." Single OAuth login button (Google to start).
 
 #### 2. Dashboard
 List of previously uploaded documents, sorted by recency. Each card shows: title, document type badge, date uploaded, number of conversations. Empty state with prominent upload CTA.
@@ -399,10 +397,10 @@ Split layout:
 #### 5. Mobile Considerations
 On mobile, the split layout becomes tabbed: Summary | Chat | Original. The upload flow should support camera capture directly (for photographing paper bills) — this is just an `<input type="file" accept="image/*" capture="environment">`.
 
-### UX Details That Matter for Portfolio
+### UX Details That Matter
 
 - **Processing feedback**: Don't just show a spinner. Show named stages with Jargoyle personality: "Jargoyle is reading your document...", "Picking out the important bits...", "Translating the jargon...". Makes the AI pipeline tangible and reinforces the brand.
-- **Error states**: Graceful handling of unreadable documents, unsupported formats, processing failures. This is the kind of thing interviewers notice.
+- **Error states**: Graceful handling of unreadable documents, unsupported formats, processing failures.
 - **Empty states**: Every list and section should have a thoughtful empty state, not just blank space.
 - **Responsive**: Works on phone. The camera-upload flow for paper documents is a compelling demo moment.
 
@@ -452,7 +450,7 @@ On mobile, the split layout becomes tabbed: Summary | Chat | Original. The uploa
 
 3. **Conversation history in prompt** — Last N messages (configurable, default 10) are included in the chat prompt for continuity. Token budget: ~500 for system prompt + ~2000 for retrieved chunks + ~1500 for history + remainder for response. This needs to be managed carefully — a utility method that trims history from the oldest messages when approaching the limit.
 
-4. **File storage abstraction** — `StorageService` interface with `LocalStorageService` (dev) and `S3StorageService` (prod) implementations. Spring profile-driven. For portfolio purposes, local storage is fine, but having the abstraction shows production thinking.
+4. **File storage abstraction** — `StorageService` interface with `LocalStorageService` (dev) and `S3StorageService` (prod) implementations. Spring profile-driven. Local storage is the dev-profile default; S3 for production.
 
 ---
 
@@ -493,13 +491,12 @@ On mobile, the split layout becomes tabbed: Summary | Chat | Original. The uploa
 
 **Milestone**: Photograph a paper bill with your phone, upload it, get a full explanation.
 
-### Phase 4 — Portfolio Readiness (Week 7)
+### Phase 4 — Polish & Deployment (Week 7)
 - README with architecture diagram, screenshots, and setup instructions
 - Test coverage: unit tests for services, integration tests for API, repository tests with Testcontainers
 - Code quality: consistent patterns, Javadoc on public APIs, clean package structure
-- Demo data seeder (optional: pre-loaded example documents for reviewers)
+- Demo data seeder (optional: pre-loaded example documents for new users)
 - Docker Compose for one-command local setup
-- Record a 2-minute demo video walkthrough
 
 **Milestone**: Someone can clone the repo (`jargoyle`), run `docker compose up`, and have a working app.
 
@@ -513,16 +510,3 @@ On mobile, the split layout becomes tabbed: Summary | Chat | Original. The uploa
 - **LLM interaction tests**: Tricky to unit test. Use Spring AI's test support where available. For the RAG pipeline, test the retrieval and prompt assembly separately from the actual LLM call. Consider a mock `ChatModel` that returns canned responses for deterministic testing.
 - **Frontend**: React Testing Library for component tests, especially the chat interface and file upload flow.
 
----
-
-## Talking Points for Interviews
-
-Things this project lets you discuss credibly:
-
-- **RAG pipeline design**: Chunking strategies, embedding models, retrieval quality, prompt engineering for grounded answers
-- **Vision AI for document processing**: Why vision LLMs beat traditional OCR for complex layouts, cost/quality tradeoffs
-- **Async processing patterns**: Background job execution, SSE for progress updates, error recovery
-- **Data modelling**: The document → chunks → conversations → messages hierarchy, JSONB for semi-structured data alongside relational data
-- **Security**: OAuth2/OIDC, document-scoped access control (users can only see their own documents), input validation on file uploads
-- **Production considerations you'd add**: Rate limiting, file size/type validation, cost controls on LLM calls, monitoring/observability, queue-based processing (SQS/RabbitMQ) instead of `@Async` at scale
-- **Spring AI specifically**: How the framework abstracts LLM providers, the VectorStore abstraction, document readers and text splitters

@@ -1,11 +1,14 @@
 package com.jargoyle.entity;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+
+import com.jargoyle.dto.SourceChunkReference;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,19 +32,20 @@ public class Message {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "conversation_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "conversation_id", nullable = false)
     private Conversation conversation;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private MessageRole role;
 
-    @Column(columnDefinition = "text")
+    @Column(columnDefinition = "text", nullable = false)
     private String content;
 
     @Column(columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
-    private String sourceChunks;
+    private List<SourceChunkReference> sourceChunks;
 
     private Integer tokenCount;
 
@@ -77,11 +81,11 @@ public class Message {
         this.content = content;
     }
 
-    public String getSourceChunks() {
+    public List<SourceChunkReference> getSourceChunks() {
         return sourceChunks;
     }
 
-    public void setSourceChunks(String sourceChunks) {
+    public void setSourceChunks(List<SourceChunkReference> sourceChunks) {
         this.sourceChunks = sourceChunks;
     }
 

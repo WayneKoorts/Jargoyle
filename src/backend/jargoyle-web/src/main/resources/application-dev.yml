@@ -32,6 +32,10 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  output:
+    ansi:
+      enabled: always
+
   web:
     error:
       include-message: always

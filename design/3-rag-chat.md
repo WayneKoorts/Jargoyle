@@ -130,8 +130,8 @@ create index idx_messages_conversation_id_created_at on messages(conversation_id
 - **`source_chunks` as JSONB** — an array of chunk reference objects for assistant messages. Structure:
   ```json
   [
-    { "chunkId": "uuid-here", "chunkIndex": 3, "preview": "First 100 chars of chunk..." },
-    { "chunkId": "uuid-here", "chunkIndex": 7, "preview": "First 100 chars of chunk..." }
+    { "chunkId": "uuid-here", "chunkIndex": 3, "preview": "First 150 chars of chunk..." },
+    { "chunkId": "uuid-here", "chunkIndex": 7, "preview": "First 150 chars of chunk..." }
   ]
   ```
   **Why JSONB rather than a join table?** The source chunk references are written once (when the assistant message is created) and read as-is for display. They are never queried independently ("find all messages that reference chunk X" is not a use case). A join table (`message_source_chunks`) would add an extra table, an extra join on every message read, and an extra insert per chunk per message — all for query flexibility we don't need. JSONB is the right tool for write-once, read-with-parent data. Nullable because user messages have no source chunks.
@@ -154,9 +154,9 @@ Follows the same entity patterns as `Document` and `DocumentSummary` — UUID pr
 | Field | Type | JPA annotations | Notes |
 |-------|------|-----------------|-------|
 | `id` | `UUID` | `@Id @GeneratedValue(strategy = UUID)` | |
-| `document` | `Document` | `@ManyToOne(fetch = LAZY)` `@JoinColumn(name = "document_id")` | Many chunks per document |
+| `document` | `Document` | `@ManyToOne(fetch = LAZY, optional = false)` `@JoinColumn(name = "document_id", nullable = false)` | Many chunks per document |
 | `chunkIndex` | `int` | | 0-based ordering within the document |
-| `content` | `String` | `@Column(columnDefinition = "text")` | The chunk text |
+| `content` | `String` | `@Column(columnDefinition = "text", nullable = false)` | The chunk text |
 | `embedding` | `float[]` | `@Column(columnDefinition = "vector(1536)")` | See pgvector mapping note below |
 | `tokenCount` | `int` | | Token count at chunking time |
 | `createdAt` | `Instant` | `@CreationTimestamp` | |
@@ -175,7 +175,7 @@ Follows the same entity patterns as `Document` and `DocumentSummary` — UUID pr
 | Field | Type | JPA annotations | Notes |
 |-------|------|-----------------|-------|
 | `id` | `UUID` | `@Id @GeneratedValue(strategy = UUID)` | |
-| `document` | `Document` | `@ManyToOne(fetch = LAZY)` `@JoinColumn(name = "document_id")` | |
+| `document` | `Document` | `@ManyToOne(fetch = LAZY, optional = false)` `@JoinColumn(name = "document_id", nullable = false)` | |
 | `title` | `String` | | Nullable — auto-generated or user-set |
 | `createdAt` | `Instant` | `@CreationTimestamp` | |
 | `lastMessageAt` | `Instant` | | Updated programmatically on each new message |
@@ -187,14 +187,14 @@ Follows the same entity patterns as `Document` and `DocumentSummary` — UUID pr
 | Field | Type | JPA annotations | Notes |
 |-------|------|-----------------|-------|
 | `id` | `UUID` | `@Id @GeneratedValue(strategy = UUID)` | |
-| `conversation` | `Conversation` | `@ManyToOne(fetch = LAZY)` `@JoinColumn(name = "conversation_id")` | |
-| `role` | `MessageRole` | `@Enumerated(STRING)` | `USER` or `ASSISTANT` |
-| `content` | `String` | `@Column(columnDefinition = "text")` | Full message text |
-| `sourceChunks` | `String` | `@Column(columnDefinition = "jsonb")` `@JdbcTypeCode(SqlTypes.JSON)` | JSON array of chunk references. Nullable. |
+| `conversation` | `Conversation` | `@ManyToOne(fetch = LAZY, optional = false)` `@JoinColumn(name = "conversation_id", nullable = false)` | |
+| `role` | `MessageRole` | `@Enumerated(STRING)` `@Column(nullable = false)` | `USER` or `ASSISTANT` |
+| `content` | `String` | `@Column(columnDefinition = "text", nullable = false)` | Full message text |
+| `sourceChunks` | `List<SourceChunkReference>` | `@Column(columnDefinition = "jsonb")` `@JdbcTypeCode(SqlTypes.JSON)` | Typed list of chunk references. Nullable (null for user messages). |
 | `tokenCount` | `Integer` | | Nullable. Token count for budget management. |
 | `createdAt` | `Instant` | `@CreationTimestamp` | |
 
-**Why store `sourceChunks` as a raw JSON `String`?** Same rationale as `keyFacts` and `flaggedTerms` on `DocumentSummary` — the data is written once by the service layer and passed through to the frontend as-is. Mapping it to Java objects would create a parallel structure for no querying benefit.
+**Why store `sourceChunks` as a typed `List<SourceChunkReference>` rather than a raw `String`?** Unlike `keyFacts` and `flaggedTerms` on `DocumentSummary` (which the backend passes through as raw JSON without reading), `sourceChunks` is referenced by the backend during prompt construction — the service layer reads `chunkId` values to look up chunk content. Typing it avoids manual JSON parsing in the service layer and provides compile-time safety. Hibernate deserialises the JSONB column into the typed list automatically via Jackson (configured by `@JdbcTypeCode(SqlTypes.JSON)`).
 
 ### 3.2 Enums
 
@@ -271,7 +271,7 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
 ```java
 public interface MessageRepository extends JpaRepository<Message, UUID> {
 
-    Page<Message> findByConversationIdOrderByCreatedAtAsc(
+    Page<Message> findByConversationIdOrderByCreatedAtDesc(
         UUID conversationId, Pageable pageable);
 
     @Query(value = """
@@ -285,13 +285,17 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
         @Param("limit") int limit);
 
     long countByConversationId(UUID conversationId);
+
+    @Query("select m.conversation.id, count(m) from Message m where m.conversation.id in :conversationIds group by m.conversation.id")
+    List<Object[]> countByConversationIds(@Param("conversationIds") List<UUID> conversationIds);
 }
 ```
 
-**Why two query methods?** They serve different purposes:
+**Why three query methods?** They serve different purposes:
 
-- `findByConversationIdOrderByCreatedAtAsc` — paginated, chronological order. Serves the UI's message history display (oldest first, with "load more" for earlier messages).
+- `findByConversationIdOrderByCreatedAtDesc` — paginated, newest-first. Serves the UI's message history display (see pagination note below).
 - `findRecentByConversationId` — unpaginated, most-recent-first, limited. Serves prompt construction: "give me the last N messages for conversation context". The native query is used because Spring Data's derived query names cannot express `LIMIT` without `Pageable` (and we want a simple `List`, not a `Page`).
+- `countByConversationIds` — batch count for a list of conversations. Used when listing conversations to populate `messageCount` on `ConversationResponse` without N+1 queries. A single query returns all counts at once, which the service layer maps into a `Map<UUID, Long>`.
 
 **Note**: `findRecentByConversationId` returns messages in descending `created_at` order (newest first). The service layer reverses this list before inserting into the prompt, because the LLM expects conversation history in chronological order.
 
@@ -693,11 +697,11 @@ New SSE status events for the pipeline:
 **List conversations** (`GET /api/documents/{documentId}/conversations`):
 - Verifies document ownership.
 - Returns all conversations for the document, sorted by `lastMessageAt` descending.
-- Includes `messageCount` for each conversation so the UI can show "5 messages" without loading them.
+- Includes `messageCount` for each conversation so the UI can show "5 messages" without loading them. The service layer uses `messageRepository.countByConversationIds()` to fetch all counts in a single query, avoiding N+1.
 
 **Get messages** (`GET /api/conversations/{conversationId}/messages`):
 - Verifies ownership via `conversationRepository.findByIdAndUserId(conversationId, userId)`.
-- Returns paginated messages in chronological order (oldest first).
+- Returns paginated messages in **newest-first** order. Page 0 contains the most recent messages; higher page numbers contain progressively older messages. The frontend reverses each page for chronological display and uses "load more" to fetch older pages.
 - Default page size: 50.
 - `sourceChunks` JSON is deserialised into `List<SourceChunkReference>` for assistant messages.
 
@@ -1000,8 +1004,20 @@ export function useMessages(conversationId: string) {
     initialPageParam: 0,
   })
 
+  // Pages arrive newest-first (page 0 = most recent messages).
+  // Reverse each page's content and prepend older pages so the
+  // final array is in chronological order for rendering.
+  const messages = data?.pages
+    .flatMap(p => [...p.content].reverse())
+    .reverse() // Unreverse the page order so oldest pages come first
+    ?? []
+
+  // Re-reverse: flatMap processes page 0 first (newest), so after
+  // reversing each page's contents, we reverse the full array to
+  // get chronological order: oldest messages first, newest last.
+
   return {
-    messages: data?.pages.flatMap(p => p.content) ?? [],
+    messages,
     isLoading,
     loadMore: fetchNextPage,
     hasMore: hasNextPage,
@@ -1009,7 +1025,7 @@ export function useMessages(conversationId: string) {
 }
 ```
 
-**Why `useInfiniteQuery` for messages?** Message history can be long. `useInfiniteQuery` supports "load older messages" pagination naturally — the user scrolls up and clicks "Load more" to fetch the previous page. The messages are flattened from pages into a single array for rendering.
+**Why `useInfiniteQuery` with newest-first pagination?** Chat UIs need to show the most recent messages by default, with "load more" to fetch older history. The API returns pages newest-first (page 0 = most recent messages), which means `fetchNextPage` naturally loads older messages. Each page's messages are reversed and the pages are reordered so the final array is in chronological order for rendering — oldest message first, newest last.
 
 #### `useChatStream`
 
@@ -1230,7 +1246,7 @@ This route was defined in the Phase 1 design but may not have been implemented y
 |------------|----------------|
 | `DocumentChunkRepositoryTests` | `findTopKSimilar` returns chunks ordered by cosine similarity; only returns chunks for the specified document (not other documents); respects the `topK` limit; excludes chunks with null embeddings; `findByDocumentIdOrderByChunkIndex` returns correct ordering |
 | `ConversationRepositoryTests` | `findByIdAndUserId` returns empty for wrong user; `findByDocumentIdOrderByLastMessageAtDesc` returns correct ordering; cascade delete removes conversations when document is deleted |
-| `MessageRepositoryTests` | `findRecentByConversationId` returns correct number of messages in descending order; `findByConversationIdOrderByCreatedAtAsc` pagination works correctly; cascade delete removes messages when conversation is deleted |
+| `MessageRepositoryTests` | `findRecentByConversationId` returns correct number of messages in descending order; `findByConversationIdOrderByCreatedAtDesc` pagination works correctly; cascade delete removes messages when conversation is deleted |
 
 Use `@DataJpaTest` with Testcontainers (pgvector image). For `DocumentChunkRepositoryTests`, pre-seed chunks with known embedding values (simple synthetic vectors) to verify cosine similarity ordering.
 

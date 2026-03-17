@@ -112,6 +112,7 @@ Chunks are the unit of RAG retrieval. Chunking strategy is section-aware where p
 |--------|------|-------|
 | `id` | UUID | PK |
 | `document_id` | UUID | FK → documents |
+| `title` | VARCHAR(255) | Nullable — auto-generated or user-set |
 | `created_at` | TIMESTAMP | |
 | `last_message_at` | TIMESTAMP | For sorting in UI |
 
@@ -124,7 +125,8 @@ A document can have multiple conversations — lets users start fresh threads on
 | `conversation_id` | UUID | FK → conversations |
 | `role` | VARCHAR(20) | `USER` or `ASSISTANT` |
 | `content` | TEXT | Message text |
-| `source_chunks` | JSONB | Array of chunk IDs used for grounding (assistant messages only) |
+| `source_chunks` | JSONB | Array of chunk reference objects (chunkId, chunkIndex, preview) for assistant messages |
+| `token_count` | INTEGER | Nullable. Token count for conversation history budget management |
 | `created_at` | TIMESTAMP | |
 
 `source_chunks` enables a "show me where it says that" feature — the UI can highlight which parts of the original document the answer was derived from.

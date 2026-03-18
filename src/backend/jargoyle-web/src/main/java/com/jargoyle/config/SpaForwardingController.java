@@ -18,10 +18,16 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class SpaForwardingController {
 
-    // Matches any path that:
-    //  - does NOT start with /api, /oauth2, /login, /logout, /swagger, /v3
-    //  - does NOT contain a dot (i.e. not a static file request)
-    @GetMapping("/{path:^(?!api|oauth2|login|logout|swagger|v3).*$}/**")
+    // Matches any path where the first segment:
+    //  - does NOT start with api, oauth2, login, logout, swagger, v3, or assets
+    //  - does NOT contain a dot (excludes static file requests like index.html)
+    // The [^.]* prevents an infinite forward loop: when this controller forwards
+    // to /index.html, that path contains a dot and won't re-match this mapping,
+    // so it falls through to Spring's static resource handler instead.
+    @GetMapping({
+        "/{path:^(?!api|oauth2|login|logout|swagger|v3|assets)[^.]*$}",
+        "/{path:^(?!api|oauth2|login|logout|swagger|v3|assets)[^.]*$}/**"
+    })
     public String forward() {
         return "forward:/index.html";
     }

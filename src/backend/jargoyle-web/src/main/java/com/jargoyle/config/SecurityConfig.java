@@ -38,7 +38,9 @@ public class SecurityConfig {
         return http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
-                    "/", "/error", "/css/**", "/js/**",
+                    "/", "/index.html", "/error",
+                    // SPA static assets (Vite outputs to /assets/)
+                    "/assets/**", "/css/**", "/js/**",
                     // Swagger
                     "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**"
                 ).permitAll()

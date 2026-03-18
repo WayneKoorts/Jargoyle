@@ -7,7 +7,9 @@ import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.jargoyle.service.exception.ConversationNotFoundException;
 import com.jargoyle.service.exception.DocumentNotFoundException;
+import com.jargoyle.service.exception.DocumentNotReadyException;
 import com.jargoyle.service.security.UserNotFoundException;
 import com.jargoyle.service.storage.StorageSaveException;
 
@@ -29,6 +31,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DocumentNotFoundException.class)
     public ResponseEntity<String> handleDocumentNotFound(DocumentNotFoundException ex) {
         return ResponseEntity.notFound().build();
+    }
+
+    @ExceptionHandler(ConversationNotFoundException.class)
+    public ResponseEntity<String> handleConversationNotFound(ConversationNotFoundException ex) {
+        return ResponseEntity.notFound().build();
+    }
+
+    @ExceptionHandler(DocumentNotReadyException.class)
+    public ResponseEntity<String> handleDocumentNotReady(DocumentNotReadyException ex) {
+        return ResponseEntity.status(409).body(ex.getMessage());
     }
 
     @ExceptionHandler(StorageSaveException.class)

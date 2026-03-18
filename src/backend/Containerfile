@@ -18,7 +18,7 @@ RUN chmod +x gradlew
 RUN ./gradlew dependencies --no-daemon
 
 # Copy the application source and build the fat JAR.
-COPY src/ src/
+COPY . .
 RUN ./gradlew bootJar --no-daemon
 
 

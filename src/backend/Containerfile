@@ -10,16 +10,22 @@ COPY gradle/ gradle/
 COPY gradlew .
 COPY settings.gradle.kts .
 COPY build.gradle.kts .
+COPY jargoyle-model/build.gradle.kts jargoyle-model/
+COPY jargoyle-repository/build.gradle.kts jargoyle-repository/
+COPY jargoyle-service/build.gradle.kts jargoyle-service/
+COPY jargoyle-web/build.gradle.kts jargoyle-web/
 
 # Ensure the Gradle wrapper is executable (handles Windows CRLF line endings).
 RUN chmod +x gradlew
 
 # Download dependencies into the Gradle cache.
-RUN ./gradlew dependencies --no-daemon
+# The buildEnvironment task resolves all plugin and project dependencies
+# across sub-projects without needing source code present.
+RUN ./gradlew buildEnvironment --no-daemon
 
 # Copy the application source and build the fat JAR.
 COPY . .
-RUN ./gradlew bootJar --no-daemon
+RUN ./gradlew :jargoyle-web:bootJar --no-daemon
 
 
 # Stage 2: Runtime
@@ -28,7 +34,7 @@ FROM eclipse-temurin:25-jre-noble AS runtime
 
 WORKDIR /app
 
-COPY --from=builder /workspace/build/libs/*.jar app.jar
+COPY --from=builder /workspace/jargoyle-web/build/libs/jargoyle-web-*.jar app.jar
 
 EXPOSE 8080
 

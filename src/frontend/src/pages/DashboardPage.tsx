@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom'
 import type { UserProfile } from '../api/auth'
 import DocumentList from '../components/DocumentList'
+import Layout from '../components/Layout'
 
 interface DashboardPageProps {
   user: UserProfile
@@ -9,34 +9,13 @@ interface DashboardPageProps {
 
 export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-        <h1 className="text-lg font-semibold text-slate-900">Jargoyle</h1>
-        <div className="flex items-center gap-4">
-          {user.role === 'ADMIN' && (
-            <Link
-              to="/admin"
-              className="rounded-md bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-200"
-            >
-              Admin
-            </Link>
-          )}
-          <span className="text-sm text-slate-600">{user.displayName}</span>
-          <button
-            onClick={onLogout}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-
+    <Layout user={user} onLogout={onLogout}>
       <div className="mx-auto max-w-4xl px-6 py-8">
         <h2 className="text-2xl font-bold text-slate-900">Your Documents</h2>
         <div className="mt-6">
           <DocumentList />
         </div>
       </div>
-    </main>
+    </Layout>
   )
 }

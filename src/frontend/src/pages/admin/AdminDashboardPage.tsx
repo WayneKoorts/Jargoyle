@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { UserProfile } from '../../api/auth'
+import Layout from '../../components/Layout'
 
 interface AdminDashboardPageProps {
   user: UserProfile
@@ -13,27 +14,7 @@ const adminLinks = [
 
 export default function AdminDashboardPage({ user, onLogout }: AdminDashboardPageProps) {
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="text-lg font-semibold text-slate-900 hover:text-slate-700">
-            Jargoyle
-          </Link>
-          <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-            Admin
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-slate-600">{user.displayName}</span>
-          <button
-            onClick={onLogout}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-
+    <Layout user={user} onLogout={onLogout} variant="admin">
       <div className="mx-auto max-w-4xl px-6 py-12">
         <h2 className="text-2xl font-bold text-slate-900">Admin Dashboard</h2>
         <p className="mt-2 text-slate-500">
@@ -57,6 +38,6 @@ export default function AdminDashboardPage({ user, onLogout }: AdminDashboardPag
           ))}
         </div>
       </div>
-    </main>
+    </Layout>
   )
 }

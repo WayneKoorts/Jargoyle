@@ -13,7 +13,7 @@ Jargoyle is a document explanation tool. Upload everyday documents — phone bil
 
 **Backend:** Java 25, Spring Boot 4, Gradle (Kotlin DSL), PostgreSQL (+ pgvector planned), Spring AI, Flyway
 
-**Frontend:** React 19, TypeScript, Vite, Tailwind CSS
+**Frontend:** React 19, TypeScript, Vite, Tailwind CSS, Vitest
 
 ## Getting Started
 
@@ -39,6 +39,7 @@ Jargoyle is a document explanation tool. Upload everyday documents — phone bil
 npm install          # Install dependencies
 npm run dev          # Start dev server
 npm run build        # Production build
+npm test             # Run tests
 ```
 
 **Docker Compose** — a `compose.yml` is provided at the project root for local services (e.g. PostgreSQL).

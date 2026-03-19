@@ -27,7 +27,7 @@ The full specification lives in `design/1-jargoyle-spec.md`. Phase-specific desi
 ## Tech Stack
 
 **Backend**: Java 25, Spring Boot 4.0.3, Gradle 9.3.1 (Kotlin DSL), PostgreSQL (+ pgvector planned)
-**Frontend**: React 19, TypeScript 5.9, Vite 7.3, Tailwind CSS 4.2
+**Frontend**: React 19, TypeScript 5.9, Vite 7.3, Tailwind CSS 4.2, Vitest 4, React Testing Library, MSW 2
 
 ## Build Commands
 
@@ -53,6 +53,8 @@ npm run dev          # Start dev server (Vite)
 npm run build        # Production build
 npm run lint         # Run ESLint
 npm run preview      # Preview production build locally
+npm test             # Run tests (Vitest)
+npm run test:watch   # Run tests in watch mode
 ```
 
 ## Backend Architecture
@@ -68,6 +70,15 @@ Auto-configuration for DataSource, Hibernate, and Flyway is excluded in `applica
 `SecurityConfig.java` in `jargoyle-web` configures OAuth2/OIDC login with a custom user service. It also enables `@EnableMethodSecurity` for `@PreAuthorize` support and enforces role-based access on `/api/admin/**` (requires `ADMIN` role).
 
 Users have a `role` field (`Role` enum: `USER`, `ADMIN`) stored as a string in the database. The `CustomOidcUserService` injects the local role as a `GrantedAuthority` into the Spring Security context on login, so `hasRole('ADMIN')` works natively throughout the app.
+
+## Frontend Testing
+
+- **Test runner**: Vitest with jsdom environment, configured in `vitest.config.ts`
+- **Test co-location**: test files sit alongside source files (e.g. `ChatPane.tsx` / `ChatPane.test.tsx`)
+- **Shared infrastructure**: `src/test/` contains setup, MSW handlers, and `renderWithProviders()` / `createTestQueryClient()` helpers
+- **API mocking**: MSW intercepts at the network level; default handlers in `msw-handlers.ts`, per-test overrides via `server.use(...)`
+- **Extracted utilities**: pure functions (`displayTitle`, `formatDate`, `formatFileSize`, `truncateWithEllipsis`) live in `src/utils/display.ts`
+- **CI**: frontend tests run in a separate `frontend-test` job in `.github/workflows/ci.yml`, publishing JUnit XML results
 
 ## Conventions
 

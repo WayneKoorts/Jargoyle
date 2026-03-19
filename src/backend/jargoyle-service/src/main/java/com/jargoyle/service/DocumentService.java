@@ -74,6 +74,8 @@ public class DocumentService {
                 d.getDocumentType() != null ? d.getDocumentType().toString() : null,
                 d.getInputType() != null ? d.getInputType().toString() : null,
                 d.getStatus().toString(),
+                d.getOriginalFilename(),
+                truncate(d.getExtractedText(), 60),
                 d.getCreatedAt()));
     }
 
@@ -173,6 +175,12 @@ public class DocumentService {
         documentProcessingService.processDocument(document.getId());
 
         return toDocumentResponse(document);
+    }
+
+    /** Returns the first {@code maxLength} characters of {@code text}, appending "…" if truncated. */
+    private static String truncate(String text, int maxLength) {
+        if (text == null || text.length() <= maxLength) return text;
+        return text.substring(0, maxLength) + "…";
     }
 
     private DocumentResponse toDocumentResponse(Document doc) {

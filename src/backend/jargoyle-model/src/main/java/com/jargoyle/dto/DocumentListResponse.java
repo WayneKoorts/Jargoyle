@@ -13,5 +13,7 @@ public record DocumentListResponse(
     String documentType,
     String inputType,
     String status,
+    String originalFilename,
+    String textPreview,
     Instant createdAt
 ) {}

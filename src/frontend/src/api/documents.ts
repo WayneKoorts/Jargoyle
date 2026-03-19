@@ -1,4 +1,8 @@
 import { apiClient, apiFormData } from './client'
+import type { Page } from './types'
+
+// Re-export so existing imports from this module still work
+export type { Page } from './types'
 
 // Mirrors the backend DocumentListResponse record
 export interface DocumentSummary {
@@ -10,17 +14,6 @@ export interface DocumentSummary {
   originalFilename: string | null
   textPreview: string | null
   createdAt: string
-}
-
-// Generic Spring Data Page shape — reusable for any paginated endpoint
-export interface Page<T> {
-  content: T[]
-  totalElements: number
-  totalPages: number
-  numberOfElements: number
-  first: boolean
-  last: boolean
-  empty: boolean
 }
 
 export interface DocumentListParams {

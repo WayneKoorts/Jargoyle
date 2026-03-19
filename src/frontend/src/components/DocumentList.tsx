@@ -7,6 +7,7 @@ import {
   INPUT_TYPE_LABELS,
   type DocumentSummary,
 } from '../api/documents'
+import { displayTitle, formatDate } from '../utils/display'
 
 const PAGE_SIZE = 20
 
@@ -16,31 +17,6 @@ const SORT_OPTIONS = [
   { value: 'documentType', label: 'Document type' },
   { value: 'status', label: 'Status' },
 ] as const
-
-function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(iso))
-}
-
-/**
- * Picks the best display title for a document. While processing, the
- * AI-generated title hasn't been set yet, so we fall back to the
- * original filename (for PDFs) or a preview of the pasted text.
- */
-function displayTitle(doc: DocumentSummary): string {
-  if (doc.title) return doc.title
-  if (doc.originalFilename) return truncateWithEllipsis(doc.originalFilename, 50)
-  if (doc.textPreview) return truncateWithEllipsis(doc.textPreview, 50)
-  return 'Untitled document'
-}
-
-function truncateWithEllipsis(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text
-  return text.slice(0, maxLength) + '…'
-}
 
 const STATUS_COLOURS: Record<string, string> = {
   READY: 'bg-green-100 text-green-800',

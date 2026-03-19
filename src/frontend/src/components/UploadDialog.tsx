@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useUploadDocument } from '../hooks/useUploadDocument'
 import { useDocumentStatus } from '../hooks/useDocumentStatus'
 import { ACCEPTED_FILE_TYPES, MAX_FILE_SIZE_BYTES, MAX_TEXT_LENGTH } from '../api/documents'
+import { formatFileSize } from '../utils/display'
 
 type Tab = 'file' | 'text'
 type Phase = 'input' | 'processing' | 'complete'
@@ -10,12 +11,6 @@ type Phase = 'input' | 'processing' | 'complete'
 interface UploadDialogProps {
   open: boolean
   onClose: () => void
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 export default function UploadDialog({ open, onClose }: UploadDialogProps) {

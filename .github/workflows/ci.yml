@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  backend-test:
     runs-on: ubuntu-latest
     permissions:
       checks: write
@@ -32,3 +32,34 @@ jobs:
         if: always()
         with:
           report_paths: src/backend/**/build/test-results/test/*.xml
+          check_name: Backend Test Report
+
+  frontend-test:
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/frontend
+        run: npm ci
+
+      - name: Run tests
+        working-directory: src/frontend
+        run: npm test
+
+      - name: Test report
+        uses: mikepenz/action-junit-report@v6
+        if: always()
+        with:
+          report_paths: src/frontend/test-results/junit.xml
+          check_name: Frontend Test Report

@@ -7,6 +7,8 @@ import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.jargoyle.service.exception.AdminOperationException;
+import com.jargoyle.service.exception.AdminUserNotFoundException;
 import com.jargoyle.service.exception.ConversationNotFoundException;
 import com.jargoyle.service.exception.DocumentNotFoundException;
 import com.jargoyle.service.exception.DocumentNotReadyException;
@@ -21,6 +23,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<String> handleUserNotFound(UserNotFoundException ex) {
         return ResponseEntity.status(401).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(AdminUserNotFoundException.class)
+    public ResponseEntity<String> handleAdminUserNotFound(AdminUserNotFoundException ex) {
+        return ResponseEntity.notFound().build();
+    }
+
+    @ExceptionHandler(AdminOperationException.class)
+    public ResponseEntity<String> handleAdminOperation(AdminOperationException ex) {
+        return ResponseEntity.status(409).body(ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

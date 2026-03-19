@@ -25,6 +25,23 @@ function formatDate(iso: string): string {
   }).format(new Date(iso))
 }
 
+/**
+ * Picks the best display title for a document. While processing, the
+ * AI-generated title hasn't been set yet, so we fall back to the
+ * original filename (for PDFs) or a preview of the pasted text.
+ */
+function displayTitle(doc: DocumentSummary): string {
+  if (doc.title) return doc.title
+  if (doc.originalFilename) return truncateWithEllipsis(doc.originalFilename, 50)
+  if (doc.textPreview) return truncateWithEllipsis(doc.textPreview, 50)
+  return 'Untitled document'
+}
+
+function truncateWithEllipsis(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text
+  return text.slice(0, maxLength) + '…'
+}
+
 const STATUS_COLOURS: Record<string, string> = {
   READY: 'bg-green-100 text-green-800',
   PROCESSING: 'bg-amber-100 text-amber-800',
@@ -124,9 +141,9 @@ export default function DocumentList() {
               <div className="min-w-0 flex-1">
                 <Link
                   to={`/documents/${doc.id}`}
-                  className="text-base font-medium text-slate-900 hover:text-slate-600"
+                  className={`text-base font-medium hover:text-slate-600 ${doc.title ? 'text-slate-900' : 'italic text-slate-500'}`}
                 >
-                  {doc.title}
+                  {displayTitle(doc)}
                 </Link>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">

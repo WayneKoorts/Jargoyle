@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -25,10 +24,18 @@ public class SseEmitterRegistry implements DocumentStatusNotifier {
     public void register(UUID documentId, SseEmitter emitter) {
         var registeredEmittersForDoc = emitterRegistry.computeIfAbsent(documentId, key -> new CopyOnWriteArrayList<>());
         registeredEmittersForDoc.add(emitter);
-        emitter.onTimeout(() -> {
-            log.debug("Emitter {} timed out, removing from registry", emitter);
+
+        // Clean up the emitter when the client disconnects, times out, or
+        // an error occurs. Without these callbacks, dead emitters linger in
+        // the registry and blow up when notify() tries to send to them.
+        Runnable removeEmitter = () -> {
             registeredEmittersForDoc.remove(emitter);
-        });
+            log.debug("Emitter removed from registry for document {}", documentId);
+        };
+        emitter.onCompletion(removeEmitter);
+        emitter.onTimeout(removeEmitter);
+        emitter.onError(e -> removeEmitter.run());
+
         log.info("Registered emitter \"{}\" for document ID \"{}\"", emitter, documentId);
     }
 
@@ -43,8 +50,12 @@ public class SseEmitterRegistry implements DocumentStatusNotifier {
         for (var emitter : registeredEmittersForDoc) {
             try {
                 emitter.send(event);
-            } catch (IOException ex) {
-                log.error("Failed to notify emitter", ex);
+            } catch (Exception ex) {
+                // SseEmitter.send() throws IOException on network failures and
+                // IllegalStateException when the emitter is already completed
+                // (e.g. client disconnected). Either way, the emitter is dead —
+                // remove it and carry on. This must never abort document processing.
+                log.debug("Emitter send failed for document {}, removing: {}", documentId, ex.getMessage());
                 registeredEmittersForDoc.remove(emitter);
             }
         }
@@ -52,14 +63,19 @@ public class SseEmitterRegistry implements DocumentStatusNotifier {
 
     @Override
     public void complete(UUID documentId) {
-        var registeredEmittersForDoc = emitterRegistry.get(documentId);
+        var registeredEmittersForDoc = emitterRegistry.remove(documentId);
         if (registeredEmittersForDoc != null) {
             for (var emitter : registeredEmittersForDoc) {
-                emitter.complete();
+                try {
+                    emitter.complete();
+                } catch (Exception ex) {
+                    // The emitter may already be completed if the client disconnected;
+                    // safe to ignore.
+                    log.debug("Emitter already completed for document {}: {}", documentId, ex.getMessage());
+                }
             }
         }
 
-        emitterRegistry.remove(documentId);
         log.info("Removed document {} from emitter registry.", documentId);
     }
 }

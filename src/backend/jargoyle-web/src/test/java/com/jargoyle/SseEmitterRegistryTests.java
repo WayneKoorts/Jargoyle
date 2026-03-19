@@ -32,6 +32,7 @@ public class SseEmitterRegistryTests {
 
         // In-memory log for verification.
         logger = (Logger) LoggerFactory.getLogger(SseEmitterRegistry.class);
+        logger.setLevel(Level.DEBUG);
         listAppender = new ListAppender<>();
         listAppender.start();
         logger.addAppender(listAppender);
@@ -66,7 +67,7 @@ public class SseEmitterRegistryTests {
     }
 
     @Test
-    void notify_sendException_throwsIOException() throws IOException {
+    void notify_sendException_removesEmitterAndContinues() throws IOException {
         var docId = UUID.randomUUID();
         var faultyEmitter = mock(SseEmitter.class);
         doThrow(new IOException())
@@ -75,10 +76,27 @@ public class SseEmitterRegistryTests {
         sut.register(docId, faultyEmitter);
         sut.notify(docId, new ProcessingStatusEvent("", "", ""));
 
+        // The failed emitter should be silently removed — no exception propagated
         assertThat(listAppender.list)
                 .anyMatch(event ->
-                        event.getFormattedMessage().contains("Failed to notify emitter")
-                        && event.getLevel() == Level.ERROR);
+                        event.getFormattedMessage().contains("Emitter send failed")
+                        && event.getLevel() == Level.DEBUG);
+    }
+
+    @Test
+    void notify_illegalStateException_removesEmitterAndContinues() throws IOException {
+        var docId = UUID.randomUUID();
+        var deadEmitter = mock(SseEmitter.class);
+        doThrow(new IllegalStateException("ResponseBodyEmitter has already completed"))
+                .when(deadEmitter).send(any(ProcessingStatusEvent.class));
+
+        sut.register(docId, deadEmitter);
+        sut.notify(docId, new ProcessingStatusEvent("PROCESSING", "Saving results...", null));
+
+        assertThat(listAppender.list)
+                .anyMatch(event ->
+                        event.getFormattedMessage().contains("Emitter send failed")
+                        && event.getLevel() == Level.DEBUG);
     }
 
     @Test

@@ -1,1 +1,17 @@
 @import "tailwindcss";
+
+/* Tailwind v4 removed the v3 preflight rule that set cursor: pointer on
+   interactive elements.  This restores it for all clickable controls. */
+@layer base {
+  button,
+  [role="button"],
+  a,
+  label[for],
+  select,
+  summary,
+  [type="button"],
+  [type="reset"],
+  [type="submit"] {
+    cursor: pointer;
+  }
+}

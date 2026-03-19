@@ -22,6 +22,15 @@ export function displayTitle(doc: DocumentSummary): string {
 }
 
 /**
+ * Picks the best display name for a user, falling back to their email
+ * address if the display name is empty or missing.
+ */
+export function displayUserName(user: { displayName?: string | null; email: string }): string {
+  if (user.displayName?.trim()) return user.displayName.trim()
+  return user.email
+}
+
+/**
  * Formats an ISO date string into a human-readable en-GB locale string
  * (e.g. "19 Mar 2026").
  */

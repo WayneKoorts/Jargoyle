@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage'
 import AdminDashboardPage from './pages/admin/AdminDashboardPage'
 import AdminUsersPage from './pages/admin/AdminUsersPage'
 import AdminDocumentsPage from './pages/admin/AdminDocumentsPage'
+import AdminUserDetailsPage from './pages/admin/AdminUserDetailsPage'
 import DocumentDetailsPage from './pages/DocumentDetailsPage'
 
 const queryClient = new QueryClient({
@@ -44,6 +45,7 @@ function AppRoutes() {
         <>
           <Route path="/admin" element={<AdminDashboardPage user={user} onLogout={logout} />} />
           <Route path="/admin/users" element={<AdminUsersPage user={user} onLogout={logout} />} />
+          <Route path="/admin/users/:id" element={<AdminUserDetailsPage user={user} onLogout={logout} />} />
           <Route path="/admin/documents" element={<AdminDocumentsPage user={user} onLogout={logout} />} />
         </>
       )}

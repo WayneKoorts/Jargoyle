@@ -1,4 +1,4 @@
-import { displayTitle, truncateWithEllipsis, formatDate, formatFileSize } from './display'
+import { displayTitle, displayUserName, truncateWithEllipsis, formatDate, formatFileSize } from './display'
 import type { DocumentSummary } from '../api/documents'
 
 /** Helper to build a minimal DocumentSummary with overrides */
@@ -35,6 +35,32 @@ describe('displayTitle', () => {
 
   it('returns "Untitled document" when nothing is available', () => {
     expect(displayTitle(makeDoc())).toBe('Untitled document')
+  })
+})
+
+describe('displayUserName', () => {
+  it('returns the display name when present', () => {
+    expect(displayUserName({ displayName: 'Alice', email: 'alice@example.com' })).toBe('Alice')
+  })
+
+  it('falls back to email when displayName is null', () => {
+    expect(displayUserName({ displayName: null, email: 'alice@example.com' })).toBe('alice@example.com')
+  })
+
+  it('falls back to email when displayName is undefined', () => {
+    expect(displayUserName({ email: 'alice@example.com' })).toBe('alice@example.com')
+  })
+
+  it('falls back to email when displayName is empty string', () => {
+    expect(displayUserName({ displayName: '', email: 'alice@example.com' })).toBe('alice@example.com')
+  })
+
+  it('falls back to email when displayName is only whitespace', () => {
+    expect(displayUserName({ displayName: '   ', email: 'alice@example.com' })).toBe('alice@example.com')
+  })
+
+  it('trims whitespace from display name', () => {
+    expect(displayUserName({ displayName: '  Alice  ', email: 'alice@example.com' })).toBe('Alice')
   })
 })
 

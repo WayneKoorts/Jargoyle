@@ -80,4 +80,68 @@ export const handlers = [
   http.post('/api/auth/logout', () => {
     return new HttpResponse(null, { status: 204 })
   }),
+
+  // Admin — user list (default: two users, single page)
+  http.get('/api/admin/users', () => {
+    return HttpResponse.json({
+      content: [
+        {
+          id: 'user-1',
+          email: 'admin@example.com',
+          displayName: 'Admin User',
+          oauthProvider: 'google',
+          role: 'ADMIN',
+          createdAt: '2026-01-15T10:00:00Z',
+          lastLoginAt: '2026-03-18T09:00:00Z',
+        },
+        {
+          id: 'user-2',
+          email: 'regular@example.com',
+          displayName: 'Regular User',
+          oauthProvider: 'google',
+          role: 'USER',
+          createdAt: '2026-02-20T14:00:00Z',
+          lastLoginAt: null,
+        },
+      ],
+      totalElements: 2,
+      totalPages: 1,
+      numberOfElements: 2,
+      first: true,
+      last: true,
+      empty: false,
+    })
+  }),
+
+  // Admin — single user detail
+  http.get('/api/admin/users/:id', ({ params }) => {
+    return HttpResponse.json({
+      id: params.id,
+      email: 'regular@example.com',
+      displayName: 'Regular User',
+      oauthProvider: 'google',
+      role: 'USER',
+      createdAt: '2026-02-20T14:00:00Z',
+      lastLoginAt: null,
+    })
+  }),
+
+  // Admin — update user
+  http.put('/api/admin/users/:id', async ({ params, request }) => {
+    const body = await request.json() as Record<string, string>
+    return HttpResponse.json({
+      id: params.id,
+      email: body.email ?? 'regular@example.com',
+      displayName: body.displayName ?? 'Regular User',
+      oauthProvider: 'google',
+      role: body.role ?? 'USER',
+      createdAt: '2026-02-20T14:00:00Z',
+      lastLoginAt: null,
+    })
+  }),
+
+  // Admin — delete user
+  http.delete('/api/admin/users/:id', () => {
+    return new HttpResponse(null, { status: 204 })
+  }),
 ]

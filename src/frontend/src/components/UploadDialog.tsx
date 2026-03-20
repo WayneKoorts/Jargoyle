@@ -141,12 +141,26 @@ export default function UploadDialog({ open, onClose }: UploadDialogProps) {
 
     try {
       const result = await upload.mutateAsync(
-        tab === 'file' ? { file: file! } : { text },
+        tab === 'file'
+          ? {
+              file: file!,
+              onDocumentCreated: (createdDocumentId: string) => {
+                setDocumentId(createdDocumentId)
+                setPhase('processing')
+              },
+            }
+          : {
+              text,
+              onDocumentCreated: (createdDocumentId: string) => {
+                setDocumentId(createdDocumentId)
+                setPhase('processing')
+              },
+            },
       )
       setDocumentId(result.id)
-      setPhase('processing')
-    } catch {
-      // Error is available via upload.error — stays on input phase
+    } catch (error) {
+      // Error is also surfaced via upload.error for UI display
+      console.error('Upload failed:', error)
     }
   }
 
@@ -305,6 +319,11 @@ export default function UploadDialog({ open, onClose }: UploadDialogProps) {
                 <p className="text-sm font-medium text-slate-900">
                   {status.step ?? 'Starting…'}
                 </p>
+                {status.status && (
+                  <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                    {status.status.replaceAll('_', ' ')}
+                  </p>
+                )}
                 <p className="mt-1 text-xs text-slate-400">
                   This may take a moment
                 </p>

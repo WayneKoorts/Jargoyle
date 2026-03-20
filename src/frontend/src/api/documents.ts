@@ -37,7 +37,9 @@ export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
 }
 
 export const STATUS_LABELS: Record<string, string> = {
+  PENDING_UPLOAD: 'Waiting for upload',
   UPLOADING: 'Uploading',
+  QUEUED: 'Queued',
   PROCESSING: 'Processing',
   READY: 'Ready',
   FAILED: 'Failed',
@@ -88,7 +90,8 @@ export function parseKeyFacts(json: string | null | undefined): KeyFacts {
       dates: Array.isArray(parsed.dates) ? parsed.dates : [],
       parties: Array.isArray(parsed.parties) ? parsed.parties : [],
     }
-  } catch {
+  } catch (e) {
+    console.warn('Failed to parse keyFacts JSON — displaying empty results:', e)
     return empty
   }
 }
@@ -102,7 +105,8 @@ export function parseFlaggedTerms(json: string | null | undefined): FlaggedTerm[
   try {
     const parsed = JSON.parse(json)
     return Array.isArray(parsed) ? parsed : []
-  } catch {
+  } catch (e) {
+    console.warn('Failed to parse flaggedTerms JSON — displaying empty results:', e)
     return []
   }
 }
@@ -120,9 +124,19 @@ export interface DocumentResponse {
   createdAt: string
 }
 
+export interface DocumentUploadTargetResponse {
+  url: string
+  method: 'PUT' | 'POST'
+}
+
+export interface DocumentUploadSessionResponse {
+  document: DocumentResponse
+  uploadTarget: DocumentUploadTargetResponse | null
+}
+
 // Mirrors the backend ProcessingStatusEvent record (sent over SSE)
 export interface ProcessingStatusEvent {
-  status: 'PROCESSING' | 'READY' | 'FAILED'
+  status: 'PENDING_UPLOAD' | 'UPLOADING' | 'QUEUED' | 'PROCESSING' | 'READY' | 'FAILED'
   step: string
   errorMessage: string | null
 }
@@ -132,19 +146,46 @@ export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
 export const MAX_TEXT_LENGTH = 100_000
 export const ACCEPTED_FILE_TYPES = '.pdf'
 
-export function uploadFile(file: File, fileName?: string): Promise<DocumentResponse> {
-  const formData = new FormData()
-  formData.append('file', file)
-  if (fileName) {
-    formData.append('fileName', fileName)
-  }
-  return apiFormData<DocumentResponse>('/documents', formData)
+export function createDocumentUploadSession(params: {
+  inputType: 'PDF' | 'TEXT'
+  fileName?: string
+  text?: string
+}): Promise<DocumentUploadSessionResponse> {
+  return apiClient<DocumentUploadSessionResponse>('/documents/uploads', {
+    method: 'POST',
+    body: {
+      inputType: params.inputType,
+      originalFilename: params.fileName ?? null,
+      text: params.text ?? null,
+    },
+  })
 }
 
-export function uploadText(text: string): Promise<DocumentResponse> {
+export async function uploadDocumentContent(target: DocumentUploadTargetResponse, file: File): Promise<void> {
   const formData = new FormData()
-  formData.append('text', text)
-  return apiFormData<DocumentResponse>('/documents', formData)
+  formData.append('file', file)
+
+  if (/^https?:\/\//.test(target.url)) {
+    const response = await fetch(target.url, {
+      method: target.method,
+      body: file,
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => '')
+      throw new Error(errorBody || `Upload error: ${response.status} ${response.statusText}`)
+    }
+
+    return
+  }
+
+  await apiFormData<void>(target.url, formData, { method: target.method })
+}
+
+export function finaliseDocumentUpload(documentId: string): Promise<DocumentResponse> {
+  return apiClient<DocumentResponse>(`/documents/${documentId}/finalise`, {
+    method: 'POST',
+  })
 }
 
 export function fetchDocuments(params: DocumentListParams): Promise<Page<DocumentSummary>> {

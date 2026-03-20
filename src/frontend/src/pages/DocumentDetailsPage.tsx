@@ -25,6 +25,8 @@ interface DocumentDetailsPageProps {
 const STATUS_COLOURS: Record<string, string> = {
   READY: 'bg-green-100 text-green-800',
   PROCESSING: 'bg-amber-100 text-amber-800',
+  QUEUED: 'bg-sky-100 text-sky-800',
+  PENDING_UPLOAD: 'bg-slate-100 text-slate-800',
   UPLOADING: 'bg-blue-100 text-blue-800',
   FAILED: 'bg-red-100 text-red-800',
 }
@@ -70,7 +72,7 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
   const deleteMutation = useDeleteDocument()
 
   // Subscribe to SSE only while the document is still processing
-  const isProcessing = document?.status === 'PROCESSING'
+  const isProcessing = document != null && document.status !== 'READY' && document.status !== 'FAILED'
   const { step, isComplete, isFailed, errorMessage: sseError } = useDocumentStatus(
     isProcessing ? document.id : null,
   )
@@ -187,9 +189,9 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
         </div>
 
         {/* Processing state */}
-        {document.status === 'PROCESSING' && (
+        {document.status !== 'READY' && document.status !== 'FAILED' && (
           <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
-            <p className="font-medium text-amber-800">Processing your document…</p>
+            <p className="font-medium text-amber-800">{STATUS_LABELS[document.status] ?? document.status}</p>
             {step && <p className="mt-1 text-sm text-amber-700">{step}</p>}
             {sseError && <p className="mt-1 text-sm text-red-600">{sseError}</p>}
           </div>

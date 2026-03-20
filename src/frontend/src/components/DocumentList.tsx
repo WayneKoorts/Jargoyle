@@ -21,6 +21,8 @@ const SORT_OPTIONS = [
 const STATUS_COLOURS: Record<string, string> = {
   READY: 'bg-green-100 text-green-800',
   PROCESSING: 'bg-amber-100 text-amber-800',
+  QUEUED: 'bg-sky-100 text-sky-800',
+  PENDING_UPLOAD: 'bg-slate-100 text-slate-800',
   UPLOADING: 'bg-blue-100 text-blue-800',
   FAILED: 'bg-red-100 text-red-800',
 }

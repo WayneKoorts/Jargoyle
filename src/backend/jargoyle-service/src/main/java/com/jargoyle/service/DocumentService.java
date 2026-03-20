@@ -9,6 +9,7 @@ import com.jargoyle.entity.DocumentStatus;
 import com.jargoyle.entity.DocumentType;
 import com.jargoyle.repository.DocumentSummaryRepository;
 import com.jargoyle.service.exception.DocumentNotFoundException;
+import com.jargoyle.service.storage.StorageService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,13 +27,16 @@ public class DocumentService {
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
     private final DocumentRepository documentRepository;
     private final DocumentSummaryRepository documentSummaryRepository;
+    private final StorageService storageService;
 
     public DocumentService(
             DocumentRepository documentRepository,
-            DocumentSummaryRepository documentSummaryRepository) {
+            DocumentSummaryRepository documentSummaryRepository,
+            StorageService storageService) {
 
         this.documentRepository = documentRepository;
         this.documentSummaryRepository = documentSummaryRepository;
+        this.storageService = storageService;
     }
 
     public DocumentResponse getById(UUID userId, UUID documentId) {
@@ -82,7 +86,18 @@ public class DocumentService {
 
     @Transactional
     public void delete(UUID userId, UUID documentId) {
-        documentRepository.deleteByIdAndUserId(documentId, userId);
+        // Fetch the document first so we can clean up its stored file.
+        var document = documentRepository.findByIdAndUserId(documentId, userId)
+                .orElseThrow(() -> new DocumentNotFoundException(documentId));
+
+        documentRepository.delete(document);
+
+        // Delete the stored file after the DB row is removed. StorageService.delete()
+        // is best-effort (logs failures but doesn't throw), so a storage failure
+        // won't roll back the database deletion.
+        if (document.getStorageKey() != null) {
+            storageService.delete(document.getStorageKey());
+        }
     }
 
     /** Returns the first {@code maxLength} characters of {@code text}, appending "…" if truncated. */

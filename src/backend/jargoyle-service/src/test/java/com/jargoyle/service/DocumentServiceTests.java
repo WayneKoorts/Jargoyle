@@ -5,6 +5,7 @@ import com.jargoyle.entity.*;
 import com.jargoyle.repository.DocumentRepository;
 import com.jargoyle.repository.DocumentSummaryRepository;
 import com.jargoyle.service.exception.DocumentNotFoundException;
+import com.jargoyle.service.storage.StorageService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,7 @@ public class DocumentServiceTests {
 
     private DocumentRepository mockDocumentRepository;
     private DocumentSummaryRepository mockDocumentSummaryRepository;
+    private StorageService mockStorageService;
 
     private DocumentService sut;
 
@@ -35,10 +37,12 @@ public class DocumentServiceTests {
     void setUp() {
         mockDocumentRepository = mock(DocumentRepository.class);
         mockDocumentSummaryRepository = mock(DocumentSummaryRepository.class);
+        mockStorageService = mock(StorageService.class);
 
         sut = new DocumentService(
                 mockDocumentRepository,
-                mockDocumentSummaryRepository);
+                mockDocumentSummaryRepository,
+                mockStorageService);
     }
 
     // ── Helper methods ──────────────────────────────────────────────
@@ -226,10 +230,39 @@ public class DocumentServiceTests {
     // ── delete tests ────────────────────────────────────────────────
 
     @Test
-    void delete_callsRepositoryWithCorrectArguments() {
+    void delete_documentWithStorageKey_deletesFromStorageAndDatabase() {
+        var document = createDocument();
+        when(mockDocumentRepository.findByIdAndUserId(DOCUMENT_ID, USER_ID))
+                .thenReturn(Optional.of(document));
+
         sut.delete(USER_ID, DOCUMENT_ID);
 
-        verify(mockDocumentRepository).deleteByIdAndUserId(DOCUMENT_ID, USER_ID);
+        verify(mockDocumentRepository).delete(document);
+        verify(mockStorageService).delete("documents/test-file.pdf");
+    }
+
+    @Test
+    void delete_documentWithoutStorageKey_skipsStorageDeletion() {
+        var document = createDocument();
+        document.setStorageKey(null);
+        when(mockDocumentRepository.findByIdAndUserId(DOCUMENT_ID, USER_ID))
+                .thenReturn(Optional.of(document));
+
+        sut.delete(USER_ID, DOCUMENT_ID);
+
+        verify(mockDocumentRepository).delete(document);
+        verifyNoInteractions(mockStorageService);
+    }
+
+    @Test
+    void delete_documentNotFound_throwsDocumentNotFoundException() {
+        when(mockDocumentRepository.findByIdAndUserId(DOCUMENT_ID, USER_ID))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> sut.delete(USER_ID, DOCUMENT_ID))
+                .isInstanceOf(DocumentNotFoundException.class);
+
+        verifyNoInteractions(mockStorageService);
     }
 
 }

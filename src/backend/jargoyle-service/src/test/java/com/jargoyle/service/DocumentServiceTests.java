@@ -4,10 +4,7 @@ import com.jargoyle.dto.DocumentUpdateRequest;
 import com.jargoyle.entity.*;
 import com.jargoyle.repository.DocumentRepository;
 import com.jargoyle.repository.DocumentSummaryRepository;
-import com.jargoyle.repository.UserRepository;
 import com.jargoyle.service.exception.DocumentNotFoundException;
-import com.jargoyle.service.storage.StorageSaveException;
-import com.jargoyle.service.storage.StorageService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,44 +13,32 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
-import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 public class DocumentServiceTests {
 
-    private UserRepository mockUserRepository;
     private DocumentRepository mockDocumentRepository;
     private DocumentSummaryRepository mockDocumentSummaryRepository;
-    private DocumentProcessingService mockDocumentProcessingService;
-    private StorageService mockStorageService;
 
     private DocumentService sut;
 
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID DOCUMENT_ID = UUID.randomUUID();
-    private static final String STORAGE_KEY = "documents/test-file.pdf";
 
     @BeforeEach
     void setUp() {
-        mockUserRepository = mock(UserRepository.class);
         mockDocumentRepository = mock(DocumentRepository.class);
         mockDocumentSummaryRepository = mock(DocumentSummaryRepository.class);
-        mockDocumentProcessingService = mock(DocumentProcessingService.class);
-        mockStorageService = mock(StorageService.class);
 
         sut = new DocumentService(
-                mockUserRepository,
                 mockDocumentRepository,
-                mockDocumentSummaryRepository,
-                mockDocumentProcessingService,
-                mockStorageService);
+                mockDocumentSummaryRepository);
     }
 
     // ── Helper methods ──────────────────────────────────────────────
@@ -65,7 +50,7 @@ public class DocumentServiceTests {
         document.setDocumentType(DocumentType.CONTRACT);
         document.setTitle("Test Document");
         document.setOriginalFilename("test.pdf");
-        document.setStorageKey(STORAGE_KEY);
+        document.setStorageKey("documents/test-file.pdf");
         return document;
     }
 
@@ -76,13 +61,6 @@ public class DocumentServiceTests {
         summary.setKeyFacts("{\"numbers\": []}");
         summary.setFlaggedTerms("[{\"term\": \"indemnity\"}]");
         return summary;
-    }
-
-    private User createUser() {
-        var user = new User();
-        user.setEmail("test@example.com");
-        user.setDisplayName("Test User");
-        return user;
     }
 
     // ── getById tests ───────────────────────────────────────────────
@@ -254,126 +232,4 @@ public class DocumentServiceTests {
         verify(mockDocumentRepository).deleteByIdAndUserId(DOCUMENT_ID, USER_ID);
     }
 
-    // ── upload (PDF) tests ──────────────────────────────────────────
-
-    @Test
-    void upload_pdf_savesDocumentAndStoresFile() throws Exception {
-        var user = createUser();
-        var pdfContent = new byte[]{1, 2, 3};
-        var request = new DocumentUploadRequest.PdfDocumentUpload(USER_ID, "file.pdf", pdfContent);
-
-        when(mockUserRepository.getReferenceById(USER_ID)).thenReturn(user);
-        when(mockDocumentRepository.save(any(Document.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(mockStorageService.store(any(), any(InputStream.class))).thenReturn(STORAGE_KEY);
-        when(mockDocumentSummaryRepository.findByDocumentId(any()))
-                .thenReturn(Optional.empty());
-
-        var result = sut.upload(request);
-
-        assertThat(result).isNotNull();
-        assertThat(result.inputType()).isEqualTo("PDF");
-        assertThat(result.originalFilename()).isEqualTo("file.pdf");
-        verify(mockStorageService).store(any(), any(InputStream.class));
-        verify(mockDocumentProcessingService).processDocument(any());
-    }
-
-    @Test
-    void upload_pdf_setsInitialStatusToUploading() throws Exception {
-        var user = createUser();
-        var request = new DocumentUploadRequest.PdfDocumentUpload(USER_ID, "file.pdf", new byte[]{1});
-
-        when(mockUserRepository.getReferenceById(USER_ID)).thenReturn(user);
-        when(mockStorageService.store(any(), any(InputStream.class))).thenReturn(STORAGE_KEY);
-        // Capture the Document at first save to verify its initial status.
-        when(mockDocumentRepository.save(any(Document.class))).thenAnswer(invocation -> {
-            Document saved = invocation.getArgument(0);
-            return saved;
-        });
-        when(mockDocumentSummaryRepository.findByDocumentId(any()))
-                .thenReturn(Optional.empty());
-
-        sut.upload(request);
-
-        var captor = ArgumentCaptor.forClass(Document.class);
-        verify(mockDocumentRepository, atLeastOnce()).save(captor.capture());
-        assertThat(captor.getAllValues().getFirst().getStatus()).isEqualTo(DocumentStatus.UPLOADING);
-    }
-
-    @Test
-    void upload_pdfStorageFails_setsStatusToFailedAndRethrows() throws Exception {
-        var user = createUser();
-        var request = new DocumentUploadRequest.PdfDocumentUpload(USER_ID, "file.pdf", new byte[]{1});
-
-        when(mockUserRepository.getReferenceById(USER_ID)).thenReturn(user);
-        when(mockDocumentRepository.save(any(Document.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(mockStorageService.store(any(), any(InputStream.class)))
-                .thenThrow(new StorageSaveException("Disk full"));
-
-        assertThatThrownBy(() -> sut.upload(request))
-                .isInstanceOf(StorageSaveException.class);
-
-        var captor = ArgumentCaptor.forClass(Document.class);
-        verify(mockDocumentRepository, atLeastOnce()).save(captor.capture());
-        var lastSaved = captor.getAllValues().getLast();
-        assertThat(lastSaved.getStatus()).isEqualTo(DocumentStatus.FAILED);
-        assertThat(lastSaved.getErrorMessage()).contains("Disk full");
-    }
-
-    @Test
-    void upload_pdfStorageFails_doesNotSubmitForProcessing() throws Exception {
-        var user = createUser();
-        var request = new DocumentUploadRequest.PdfDocumentUpload(USER_ID, "file.pdf", new byte[]{1});
-
-        when(mockUserRepository.getReferenceById(USER_ID)).thenReturn(user);
-        when(mockDocumentRepository.save(any(Document.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(mockStorageService.store(any(), any(InputStream.class)))
-                .thenThrow(new StorageSaveException("Disk full"));
-
-        try { sut.upload(request); } catch (StorageSaveException ignored) {}
-
-        verifyNoInteractions(mockDocumentProcessingService);
-    }
-
-    // ── upload (text) tests ─────────────────────────────────────────
-
-    @Test
-    void upload_text_savesDocumentAndSubmitsForProcessing() throws Exception {
-        var user = createUser();
-        var request = new DocumentUploadRequest.TextDocumentUpload(USER_ID, "Some pasted text");
-
-        when(mockUserRepository.getReferenceById(USER_ID)).thenReturn(user);
-        when(mockDocumentRepository.save(any(Document.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(mockDocumentSummaryRepository.findByDocumentId(any()))
-                .thenReturn(Optional.empty());
-
-        var result = sut.upload(request);
-
-        assertThat(result).isNotNull();
-        assertThat(result.inputType()).isEqualTo("TEXT");
-        verifyNoInteractions(mockStorageService);
-        verify(mockDocumentProcessingService).processDocument(any());
-    }
-
-    @Test
-    void upload_text_setsExtractedTextFromRequest() throws Exception {
-        var user = createUser();
-        var pastedText = "This is the user's pasted text.";
-        var request = new DocumentUploadRequest.TextDocumentUpload(USER_ID, pastedText);
-
-        when(mockUserRepository.getReferenceById(USER_ID)).thenReturn(user);
-        when(mockDocumentRepository.save(any(Document.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(mockDocumentSummaryRepository.findByDocumentId(any()))
-                .thenReturn(Optional.empty());
-
-        sut.upload(request);
-
-        var captor = ArgumentCaptor.forClass(Document.class);
-        verify(mockDocumentRepository).save(captor.capture());
-        assertThat(captor.getValue().getExtractedText()).isEqualTo(pastedText);
-    }
 }

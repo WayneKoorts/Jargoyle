@@ -13,7 +13,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -24,11 +29,13 @@ public class SseEmitterRegistryTests {
     private SseEmitterRegistry sut;
     private Logger logger;
     private ListAppender<ILoggingEvent> listAppender;
+    private ScheduledExecutorService heartbeatExecutor;
 
     @BeforeEach
     void setUp() {
         mockEmitter = mock(SseEmitter.class);
-        sut = new SseEmitterRegistry();
+        heartbeatExecutor = Executors.newSingleThreadScheduledExecutor();
+        sut = new SseEmitterRegistry(heartbeatExecutor, Duration.ofMillis(25));
 
         // In-memory log for verification.
         logger = (Logger) LoggerFactory.getLogger(SseEmitterRegistry.class);
@@ -40,6 +47,7 @@ public class SseEmitterRegistryTests {
 
     @AfterEach
     void tearDown() {
+        heartbeatExecutor.shutdownNow();
         logger.detachAppender(listAppender);
     }
 
@@ -107,5 +115,21 @@ public class SseEmitterRegistryTests {
         sut.complete(docId);
 
         verify(mockEmitter).complete();
+    }
+
+    @Test
+    void register_sendsHeartbeatComments() throws Exception {
+        var docId = UUID.randomUUID();
+        var heartbeatSent = new CountDownLatch(1);
+
+        doAnswer(invocation -> {
+            heartbeatSent.countDown();
+            return null;
+        }).when(mockEmitter).send(any(SseEmitter.SseEventBuilder.class));
+
+        sut.register(docId, mockEmitter);
+
+        assertThat(heartbeatSent.await(500, TimeUnit.MILLISECONDS)).isTrue();
+        verify(mockEmitter, atLeastOnce()).send(any(SseEmitter.SseEventBuilder.class));
     }
 }

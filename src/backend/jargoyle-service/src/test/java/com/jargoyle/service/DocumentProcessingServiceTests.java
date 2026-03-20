@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -88,9 +89,9 @@ public class DocumentProcessingServiceTests {
         when(mockDocumentRepository.save(any(Document.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
-    private void setUpPdfStorageAndExtraction() throws IOException, StorageLoadException {
+    private void setUpPdfStorageAndExtraction() throws IOException {
         var pdfStream = new ByteArrayInputStream(new byte[]{1, 2, 3});
-        when(mockStorageService.load(STORAGE_KEY)).thenReturn(new InputStreamResource(pdfStream));
+        when(mockStorageService.load(STORAGE_KEY)).thenReturn(CompletableFuture.completedFuture(new InputStreamResource(pdfStream)));
         when(mockTextExtractionService.extractText(any(InputStream.class))).thenReturn(EXTRACTED_TEXT);
     }
 
@@ -204,6 +205,47 @@ public class DocumentProcessingServiceTests {
         verify(mockDocumentStatusNotifier).complete(DOCUMENT_ID);
     }
 
+    @Test
+    void processDocument_alreadyProcessing_skipsWithoutModification() {
+        var document = createDocument(InputType.PDF);
+        document.setStatus(DocumentStatus.PROCESSING);
+        setUpDocumentFound(document);
+
+        sut.processDocument(DOCUMENT_ID);
+
+        // Should not re-save or re-process the document
+        verify(mockSummaryGenerationService, never()).generateDocumentSummary(any());
+        assertThat(document.getStatus()).isEqualTo(DocumentStatus.PROCESSING);
+    }
+
+    @Test
+    void processDocument_alreadyReady_skipsWithoutModification() {
+        var document = createDocument(InputType.TEXT);
+        document.setStatus(DocumentStatus.READY);
+        setUpDocumentFound(document);
+
+        sut.processDocument(DOCUMENT_ID);
+
+        verify(mockSummaryGenerationService, never()).generateDocumentSummary(any());
+        assertThat(document.getStatus()).isEqualTo(DocumentStatus.READY);
+    }
+
+    @Test
+    void processDocument_exceptionWithNullMessage_usesClassNameAsFallback() {
+        var document = createDocument(InputType.TEXT);
+        document.setExtractedText(null); // Will cause NPE during getText
+        setUpDocumentFound(document);
+        // SummaryGenerationService will receive null, which should cause an issue
+        when(mockSummaryGenerationService.generateDocumentSummary(null))
+                .thenThrow(new NullPointerException());
+
+        sut.processDocument(DOCUMENT_ID);
+
+        assertThat(document.getStatus()).isEqualTo(DocumentStatus.FAILED);
+        // Should use class name since NPE.getMessage() returns null
+        assertThat(document.getErrorMessage()).isEqualTo("NullPointerException");
+    }
+
     // ── Error-handling tests ────────────────────────────────────────
 
     @Test
@@ -264,7 +306,7 @@ public class DocumentProcessingServiceTests {
         var document = createDocument(InputType.PDF);
         setUpDocumentFound(document);
         var pdfStream = new ByteArrayInputStream(new byte[]{1, 2, 3});
-        when(mockStorageService.load(STORAGE_KEY)).thenReturn(new InputStreamResource(pdfStream));
+        when(mockStorageService.load(STORAGE_KEY)).thenReturn(CompletableFuture.completedFuture(new InputStreamResource(pdfStream)));
         when(mockTextExtractionService.extractText(any(InputStream.class)))
                 .thenThrow(new IOException("Corrupt PDF"));
 

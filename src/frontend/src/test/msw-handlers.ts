@@ -61,8 +61,29 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
-  // Document upload (file or text)
-  http.post('/api/documents', () => {
+  http.post('/api/documents/uploads', async ({ request }) => {
+    const body = await request.json() as Record<string, string | null>
+    const inputType = body.inputType ?? 'PDF'
+
+    return HttpResponse.json({
+      document: {
+        id: 'doc-new',
+        title: null,
+        documentType: 'OTHER',
+        inputType,
+        originalFilename: body.originalFilename ?? (inputType === 'PDF' ? 'uploaded.pdf' : null),
+        status: inputType === 'TEXT' ? 'QUEUED' : 'PENDING_UPLOAD',
+        errorMessage: null,
+        summary: null,
+        createdAt: '2026-03-19T12:00:00Z',
+      },
+      uploadTarget: inputType === 'PDF'
+        ? { url: '/documents/doc-new/content', method: 'PUT' }
+        : null,
+    })
+  }),
+
+  http.put('/api/documents/:id/content', () => {
     return HttpResponse.json({
       id: 'doc-new',
       title: null,
@@ -70,6 +91,20 @@ export const handlers = [
       inputType: 'PDF',
       originalFilename: 'uploaded.pdf',
       status: 'UPLOADING',
+      errorMessage: null,
+      summary: null,
+      createdAt: '2026-03-19T12:00:00Z',
+    })
+  }),
+
+  http.post('/api/documents/:id/finalise', () => {
+    return HttpResponse.json({
+      id: 'doc-new',
+      title: null,
+      documentType: 'OTHER',
+      inputType: 'PDF',
+      originalFilename: 'uploaded.pdf',
+      status: 'QUEUED',
       errorMessage: null,
       summary: null,
       createdAt: '2026-03-19T12:00:00Z',

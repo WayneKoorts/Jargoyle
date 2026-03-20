@@ -13,7 +13,10 @@ import com.jargoyle.service.exception.ConversationNotFoundException;
 import com.jargoyle.service.exception.DocumentNotFoundException;
 import com.jargoyle.service.exception.DocumentNotReadyException;
 import com.jargoyle.service.security.UserNotFoundException;
+import com.jargoyle.service.storage.StorageLoadException;
 import com.jargoyle.service.storage.StorageSaveException;
+
+import java.util.concurrent.CompletionException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -59,6 +62,27 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleStorageSaveException(StorageSaveException ex) {
         log.error("Error saving to storage", ex);
         return ResponseEntity.internalServerError().body(ex.getMessage());
+    }
+
+    @ExceptionHandler(StorageLoadException.class)
+    public ResponseEntity<String> handleStorageLoadException(StorageLoadException ex) {
+        log.error("Error loading from storage", ex);
+        return ResponseEntity.internalServerError().body("Failed to retrieve document from storage.");
+    }
+
+    @ExceptionHandler(CompletionException.class)
+    public ResponseEntity<String> handleCompletionException(CompletionException ex) {
+        // Unwrap the CompletionException and re-dispatch to the appropriate handler
+        // if the cause is a known exception type.
+        var cause = ex.getCause();
+        if (cause instanceof StorageSaveException sse) {
+            return handleStorageSaveException(sse);
+        }
+        if (cause instanceof StorageLoadException sle) {
+            return handleStorageLoadException(sle);
+        }
+        log.error("Unhandled async error", ex);
+        return ResponseEntity.internalServerError().body("An unexpected error occurred.");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

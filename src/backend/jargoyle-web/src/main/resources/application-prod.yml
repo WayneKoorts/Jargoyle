@@ -31,6 +31,13 @@ springdoc:
   swagger-ui:
     enabled: false
 
+jargoyle:
+  storage:
+    s3:
+      bucket-name: ${JARGOYLE_S3_BUCKET_NAME}
+      region: ${JARGOYLE_S3_REGION:us-west-2}
+      upload-url-ttl: ${JARGOYLE_S3_UPLOAD_URL_TTL:15m}
+
 logging:
   level:
     com.jargoyle: INFO

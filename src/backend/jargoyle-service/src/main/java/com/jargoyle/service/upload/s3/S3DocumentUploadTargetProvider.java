@@ -31,12 +31,12 @@ public class S3DocumentUploadTargetProvider implements DocumentUploadTargetProvi
     @Override
     public DocumentUploadTargetDescriptor createUploadTarget(UUID documentId, String originalFilename) {
         var storageKey = S3StorageService.generateStorageKey(documentId);
-        // Constrain the presigned URL to only accept PDF content, preventing
-        // abuse where someone could upload arbitrary files using the URL.
+        // Don't set contentType here — it becomes a signed header, meaning
+        // the client must send the exact same Content-Type or S3 returns 403
+        // SignatureDoesNotMatch. Content validation happens in finaliseUpload.
         var putRequest = PutObjectRequest.builder()
                 .bucket(properties.bucketName())
                 .key(storageKey)
-                .contentType("application/pdf")
                 .build();
 
         Duration signatureDuration = properties.uploadUrlTtl();

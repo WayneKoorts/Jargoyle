@@ -166,11 +166,8 @@ export async function uploadDocumentContent(target: DocumentUploadTargetResponse
   formData.append('file', file)
 
   if (/^https?:\/\//.test(target.url)) {
-    // The presigned URL was signed with content-type: application/pdf,
-    // so we must send exactly that header or S3 returns 403 Forbidden.
     const response = await fetch(target.url, {
       method: target.method,
-      headers: { 'Content-Type': 'application/pdf' },
       body: file,
     })
 

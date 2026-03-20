@@ -1,6 +1,6 @@
 package com.jargoyle.service.storage;
 
-public class StorageSaveException extends Exception {
+public class StorageSaveException extends RuntimeException {
     public StorageSaveException(String message) {
         super(message);
     }

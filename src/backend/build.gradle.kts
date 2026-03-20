@@ -21,6 +21,7 @@ subprojects {
             mavenBom("org.springframework.boot:spring-boot-dependencies:4.0.3")
             mavenBom("org.testcontainers:testcontainers-bom:1.20.4")
             mavenBom("org.springframework.ai:spring-ai-bom:2.0.0-M2")
+            mavenBom("software.amazon.awssdk:bom:2.42.16")
         }
     }
 

@@ -1,0 +1,90 @@
+# GitHub Copilot Instructions
+
+This file provides guidance to GitHub Copilot when working in this repository.
+
+## Project Overview
+
+Jargoyle is a document explanation tool. Users upload documents (PDFs, images, text) and receive plain-English explanations with follow-up Q&A powered by AI (Spring AI + RAG).
+
+The developer is experienced in other languages such as C# and is learning Java and the Spring ecosystem. When making changes:
+- Explain Spring and Java concepts, patterns, and trade-offs as you go, not just what changed but why.
+- Prefer clear, explicit code over clever abstractions. Avoid hiding complexity behind layers of indirection.
+- Add brief comments explaining why something works when the pattern may be unfamiliar, such as Spring annotations or security filter chains.
+- Flag gotchas and conventions that differ from what a C# developer might expect, such as checked exceptions, annotation-driven dependency injection, and Gradle idioms.
+
+The full specification lives in `design/1-jargoyle-spec.md`. Phase-specific design documents such as `design/2-file-upload.md` cover implementation details for each milestone.
+
+## Repository Structure
+
+- `src/backend/` - Gradle multi-project build
+  - `jargoyle-model/` - JPA entities, DTOs, enums
+  - `jargoyle-repository/` - Spring Data JPA repositories
+  - `jargoyle-service/` - Business logic, security resolution, storage, text extraction
+  - `jargoyle-web/` - Spring Boot application (controllers, config, entry point)
+- `src/frontend/` - React SPA (React 19, TypeScript, Vite, Tailwind CSS)
+- `design/` - Project specification and design documents
+
+## Tech Stack
+
+Backend: Java 25, Spring Boot 4.0.3, Gradle 9.3.1 (Kotlin DSL), PostgreSQL (+ pgvector planned)
+Frontend: React 19, TypeScript 5.9, Vite 7.3, Tailwind CSS 4.2, Vitest 4, React Testing Library, MSW 2
+
+## Build Commands
+
+All backend commands run from `src/backend/`:
+
+```bash
+./gradlew build                    # Compile, test, and package all sub-projects
+./gradlew test                     # Run tests across all sub-projects
+./gradlew :jargoyle-web:bootRun    # Start the application
+./gradlew dependencies             # View dependency tree
+```
+
+Run a single test class:
+
+```bash
+./gradlew :jargoyle-service:test --tests "com.jargoyle.SomeTests"
+```
+
+Frontend commands run from `src/frontend/`:
+
+```bash
+npm install          # Install dependencies
+npm run dev          # Start dev server (Vite)
+npm run build        # Production build
+npm run lint         # Run ESLint
+npm run preview      # Preview production build locally
+npm test             # Run tests (Vitest)
+npm run test:watch   # Run tests in watch mode
+```
+
+## Backend Architecture
+
+- Package root: `com.jargoyle`
+- Entry point: `jargoyle-web/.../JargoyleApplication.java`
+- Database migrations: Flyway, migration files go in `jargoyle-web/src/main/resources/db/migration/`
+- Test naming: `*Tests` suffix, for example `JargoyleApplicationTests`
+- Integration tests: Testcontainers with PostgreSQL
+
+Auto-configuration for DataSource, Hibernate, and Flyway is excluded in `application.yml` until a database is configured. Remove those exclusions when PostgreSQL is available.
+
+`SecurityConfig.java` in `jargoyle-web` configures OAuth2/OIDC login with a custom user service. It also enables `@EnableMethodSecurity` for `@PreAuthorize` support and enforces role-based access on `/api/admin/**`, which requires the `ADMIN` role.
+
+Users have a `role` field (`Role` enum: `USER`, `ADMIN`) stored as a string in the database. The `CustomOidcUserService` injects the local role as a `GrantedAuthority` into the Spring Security context on login, so `hasRole('ADMIN')` works natively throughout the app.
+
+## Frontend Testing
+
+- Test runner: Vitest with jsdom environment, configured in `vitest.config.ts`
+- Test co-location: test files sit alongside source files, for example `ChatPane.tsx` and `ChatPane.test.tsx`
+- Shared infrastructure: `src/test/` contains setup, MSW handlers, and `renderWithProviders()` / `createTestQueryClient()` helpers
+- API mocking: MSW intercepts at the network level; default handlers live in `msw-handlers.ts`, with per-test overrides via `server.use(...)`
+- Extracted utilities: pure functions such as `displayTitle`, `formatDate`, `formatFileSize`, and `truncateWithEllipsis` live in `src/utils/display.ts`
+- CI: frontend tests run in a separate `frontend-test` job in `.github/workflows/ci.yml`, publishing JUnit XML results
+
+## Conventions
+
+- Use British English everywhere: code, comments, commit messages, documentation, and user-facing copy
+- Never commit unless explicitly asked
+- If asked to commit, commits must be signed
+- Keep commit messages short and descriptive, with small logical commits
+- Use the `product-owner` agent for GitHub issue or ticket operations

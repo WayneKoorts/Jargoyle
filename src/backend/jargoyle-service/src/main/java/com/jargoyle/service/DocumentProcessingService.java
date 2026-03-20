@@ -11,7 +11,6 @@ import com.jargoyle.service.storage.StorageLoadException;
 import com.jargoyle.service.storage.StorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.jargoyle.repository.DocumentRepository;
@@ -20,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 
 /**
  * Asynchronous document processing pipeline. Runs on a dedicated thread pool
@@ -41,7 +41,6 @@ import java.util.UUID;
  * @see TextExtractionService
  */
 @Service
-@Async("documentProcessingExecutor")
 public class DocumentProcessingService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentProcessingService.class);
@@ -95,6 +94,11 @@ public class DocumentProcessingService {
             }
 
             document = documentResult.get();
+            if (document.getStatus() == DocumentStatus.PROCESSING || document.getStatus() == DocumentStatus.READY) {
+                log.debug("Skipping processing for document {} with status {}", documentId, document.getStatus());
+                return;
+            }
+
             document.setStatus(DocumentStatus.PROCESSING);
             documentRepository.save(document);
 
@@ -117,11 +121,14 @@ public class DocumentProcessingService {
             documentRepository.save(document);
         } catch (Exception ex) {
             log.error("An error occurred during document processing.", ex);
-            documentStatusNotifier.notify(documentId, ProcessingStatusEvent.failed(ex.getMessage()));
+            // Provide a fallback message for exceptions that return null from getMessage()
+            // (e.g. NullPointerException), so the user always sees something meaningful.
+            var errorMessage = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
+            documentStatusNotifier.notify(documentId, ProcessingStatusEvent.failed(errorMessage));
 
             if (document != null) {
                 document.setStatus(DocumentStatus.FAILED);
-                document.setErrorMessage(ex.getMessage());
+                document.setErrorMessage(errorMessage);
                 documentRepository.save(document);
             }
         } finally {
@@ -142,7 +149,12 @@ public class DocumentProcessingService {
             try {
                 rawDocumentStream = storageService
                         .load(document.getStorageKey())
+                        .join()
                         .getInputStream();
+            } catch (CompletionException ex) {
+                // Unwrap: the original StorageLoadException is inside the CompletionException
+                log.error("Unable to retrieve document", ex.getCause());
+                throw new DocumentNotFoundException(document.getId(), ex.getCause());
             } catch (StorageLoadException | IOException ex) {
                 log.error("Unable to retrieve document", ex);
                 throw new DocumentNotFoundException(document.getId(), ex);

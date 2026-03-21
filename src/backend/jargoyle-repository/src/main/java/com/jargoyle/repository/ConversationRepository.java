@@ -16,7 +16,7 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
 
     @Query("""
             select c from Conversation c
-            join c.document d
+            join fetch c.document d
             where c.id = :conversationId
                 and d.user.id = :userId
             """)

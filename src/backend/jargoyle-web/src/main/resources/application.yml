@@ -62,3 +62,9 @@ jargoyle:
       target-tokens: 500
       overlap-tokens: 50
       min-tokens: 100
+    retrieval:
+      top-k: 5
+    chat:
+      max-history-messages: 10
+      max-history-tokens: 2000
+      max-response-tokens: 4000

@@ -1,5 +1,3 @@
-import type { DocumentSummary } from '../api/documents'
-
 /**
  * Truncates text to the given maximum length, appending an ellipsis
  * character if it was shortened.
@@ -14,7 +12,11 @@ export function truncateWithEllipsis(text: string, maxLength: number): string {
  * AI-generated title hasn't been set yet, so we fall back to the
  * original filename (for PDFs) or a preview of the pasted text.
  */
-export function displayTitle(doc: DocumentSummary): string {
+export function displayTitle(doc: {
+  title?: string | null
+  originalFilename?: string | null
+  textPreview?: string | null
+}): string {
   if (doc.title) return doc.title
   if (doc.originalFilename) return truncateWithEllipsis(doc.originalFilename, 50)
   if (doc.textPreview) return truncateWithEllipsis(doc.textPreview, 50)

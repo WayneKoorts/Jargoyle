@@ -114,7 +114,7 @@ export function parseFlaggedTerms(json: string | null | undefined): FlaggedTerm[
 // Mirrors the backend DocumentResponse record (returned from upload and detail)
 export interface DocumentResponse {
   id: string
-  title: string
+  title: string | null
   documentType: string
   inputType: string
   originalFilename: string | null

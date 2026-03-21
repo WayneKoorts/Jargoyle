@@ -16,6 +16,7 @@ import ChatPane from '../components/ChatPane'
 import { useDeleteDocument } from '../hooks/useDeleteDocument'
 import { useDocument } from '../hooks/useDocument'
 import { useDocumentStatus } from '../hooks/useDocumentStatus'
+import { displayTitle, formatDate } from '../utils/display'
 
 interface DocumentDetailsPageProps {
   user: UserProfile
@@ -33,14 +34,6 @@ const STATUS_COLOURS: Record<string, string> = {
 
 function statusClasses(status: string): string {
   return STATUS_COLOURS[status] ?? 'bg-slate-100 text-slate-800'
-}
-
-function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(iso))
 }
 
 export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsPageProps) {
@@ -113,6 +106,7 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
   }
 
   const summary = document.summary
+  const title = displayTitle(document)
   const flaggedTerms: FlaggedTerm[] = summary ? parseFlaggedTerms(summary.flaggedTerms) : []
   const keyFacts: KeyFacts = summary ? parseKeyFacts(summary.keyFacts) : { amounts: [], dates: [], parties: [] }
   const hasKeyFacts = keyFacts.amounts.length > 0 || keyFacts.dates.length > 0 || keyFacts.parties.length > 0
@@ -168,7 +162,9 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
         {/* Title + metadata */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">{document.title}</h2>
+            <h2 className={`text-2xl font-bold ${document.title ? 'text-slate-900' : 'italic text-slate-500'}`}>
+              {title}
+            </h2>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
               <span>{DOCUMENT_TYPE_LABELS[document.documentType] ?? 'Unknown'}</span>
               <span className="text-slate-300">&middot;</span>
@@ -189,10 +185,22 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
         </div>
 
         {/* Processing state */}
-        {document.status !== 'READY' && document.status !== 'FAILED' && (
+        {isProcessing && (
           <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
-            <p className="font-medium text-amber-800">{STATUS_LABELS[document.status] ?? document.status}</p>
-            {step && <p className="mt-1 text-sm text-amber-700">{step}</p>}
+            <div className="flex items-start gap-3">
+              <div
+                role="status"
+                aria-label="Document processing"
+                className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center"
+              >
+                <span className="sr-only">Document processing</span>
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-amber-300 border-t-amber-700" />
+              </div>
+              <div>
+                <p className="font-medium text-amber-800">{STATUS_LABELS[document.status] ?? document.status}</p>
+                {step && <p className="mt-1 text-sm text-amber-700">{step}</p>}
+              </div>
+            </div>
             {sseError && <p className="mt-1 text-sm text-red-600">{sseError}</p>}
           </div>
         )}
@@ -268,7 +276,7 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
         <div className="p-6">
           <h3 className="text-lg font-semibold text-slate-900">Delete document</h3>
           <p className="mt-2 text-sm text-slate-600">
-            Are you sure you want to delete <span className="font-medium text-slate-900">{document.title}</span>? This action cannot be undone.
+            Are you sure you want to delete <span className="font-medium text-slate-900">{title}</span>? This action cannot be undone.
           </p>
           {deleteMutation.error && (
             <p className="mt-3 text-sm text-red-600">{deleteMutation.error.message}</p>

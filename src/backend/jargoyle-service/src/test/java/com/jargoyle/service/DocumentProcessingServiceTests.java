@@ -33,6 +33,7 @@ public class DocumentProcessingServiceTests {
     private DocumentChunkRepository mockDocumentChunkRepository;
     private DocumentSummaryRepository mockDocumentSummaryRepository;
     private ChunkingService mockChunkingService;
+    private EmbeddingService mockEmbeddingService;
     private TextExtractionService mockTextExtractionService;
     private SummaryGenerationService mockSummaryGenerationService;
     private DocumentStatusNotifier mockDocumentStatusNotifier;
@@ -51,17 +52,24 @@ public class DocumentProcessingServiceTests {
         mockDocumentChunkRepository = mock(DocumentChunkRepository.class);
         mockDocumentSummaryRepository = mock(DocumentSummaryRepository.class);
         mockChunkingService = mock(ChunkingService.class);
+        mockEmbeddingService = mock(EmbeddingService.class);
         mockTextExtractionService = mock(TextExtractionService.class);
         mockSummaryGenerationService = mock(SummaryGenerationService.class);
         mockDocumentStatusNotifier = mock(DocumentStatusNotifier.class);
         mockStorageService = mock(StorageService.class);
         objectMapper = new ObjectMapper();
 
+        // Default: the embedding step finds no chunks and becomes a no-op.
+        // Tests that need embedding behaviour override this via setUpEmbedding().
+        when(mockDocumentChunkRepository.findByDocumentIdOrderByChunkIndex(any()))
+                .thenReturn(List.of());
+
         sut = new DocumentProcessingService(
                 mockDocumentRepository,
                 mockDocumentChunkRepository,
                 mockDocumentSummaryRepository,
                 mockChunkingService,
+                mockEmbeddingService,
                 mockTextExtractionService,
                 mockSummaryGenerationService,
                 mockDocumentStatusNotifier,
@@ -107,6 +115,18 @@ public class DocumentProcessingServiceTests {
                 new ChunkingService.TextChunk(0, "Chunk one", 25),
                 new ChunkingService.TextChunk(1, "Chunk two", 20)));
         when(mockDocumentChunkRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    private void setUpEmbedding() {
+        // Override the default empty-list stub so the embedding step finds chunks.
+        var chunk1 = new DocumentChunk();
+        chunk1.setContent("Chunk one");
+        var chunk2 = new DocumentChunk();
+        chunk2.setContent("Chunk two");
+        when(mockDocumentChunkRepository.findByDocumentIdOrderByChunkIndex(DOCUMENT_ID))
+                .thenReturn(List.of(chunk1, chunk2));
+        when(mockEmbeddingService.embedBatch(List.of("Chunk one", "Chunk two")))
+                .thenReturn(List.of(new float[]{0.1f, 0.2f}, new float[]{0.3f, 0.4f}));
     }
 
     // ── Happy-path tests ────────────────────────────────────────────
@@ -374,4 +394,52 @@ public class DocumentProcessingServiceTests {
         assertThat(document.getErrorMessage()).contains("Chunking failed");
         verify(mockSummaryGenerationService, never()).generateDocumentSummary(any());
     }
+
+    // ── Embedding tests ─────────────────────────────────────────────
+
+    @Test
+    void processDocument_validDocument_generatesEmbeddingsForChunks() {
+        var document = createDocument(InputType.TEXT);
+        setUpDocumentFound(document);
+        setUpChunking();
+        setUpEmbedding();
+        when(mockSummaryGenerationService.generateDocumentSummary(EXTRACTED_TEXT)).thenReturn(createSummaryResult());
+
+        sut.processDocument(DOCUMENT_ID);
+
+        verify(mockEmbeddingService).embedBatch(List.of("Chunk one", "Chunk two"));
+
+        // saveAll is called twice: once for chunk creation, once for embedding update.
+        var chunkCaptor = ArgumentCaptor.forClass(List.class);
+        verify(mockDocumentChunkRepository, times(2)).saveAll(chunkCaptor.capture());
+
+        @SuppressWarnings("unchecked")
+        var embeddedChunks = (List<DocumentChunk>) chunkCaptor.getAllValues().get(1);
+        assertThat(embeddedChunks).hasSize(2);
+        assertThat(embeddedChunks).extracting(DocumentChunk::getEmbedding)
+                .containsExactly(new float[]{0.1f, 0.2f}, new float[]{0.3f, 0.4f});
+    }
+
+    @Test
+    void processDocument_embeddingFails_setsStatusToFailed() {
+        var document = createDocument(InputType.TEXT);
+        setUpDocumentFound(document);
+        setUpChunking();
+
+        var chunk = new DocumentChunk();
+        chunk.setContent("Chunk one");
+        when(mockDocumentChunkRepository.findByDocumentIdOrderByChunkIndex(DOCUMENT_ID))
+                .thenReturn(List.of(chunk));
+        when(mockEmbeddingService.embedBatch(anyList()))
+                .thenThrow(new RuntimeException("Embedding API unavailable"));
+
+        sut.processDocument(DOCUMENT_ID);
+
+        assertThat(document.getStatus()).isEqualTo(DocumentStatus.FAILED);
+        assertThat(document.getErrorMessage()).contains("Embedding API unavailable");
+        verify(mockSummaryGenerationService, never()).generateDocumentSummary(any());
+        verify(mockDocumentStatusNotifier).notify(eq(DOCUMENT_ID), argThat(e -> "FAILED".equals(e.status())));
+        verify(mockDocumentStatusNotifier).complete(DOCUMENT_ID);
+    }
+
 }

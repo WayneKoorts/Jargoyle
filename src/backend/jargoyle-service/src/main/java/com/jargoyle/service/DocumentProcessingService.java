@@ -25,8 +25,8 @@ import java.util.concurrent.CompletionException;
 /**
  * Asynchronous document processing pipeline. Runs on a dedicated thread pool
  * ({@code documentProcessingExecutor}) and orchestrates the full lifecycle of a
- * document from upload to summary: text extraction, LLM summary generation,
- * and persistence of results.
+ * document from upload to ready: text extraction, chunking, embedding
+ * generation, LLM summary generation, and persistence of results.
  *
  * <p>Each pipeline step emits {@link ProcessingStatusEvent} notifications via
  * {@link DocumentStatusNotifier} so connected SSE clients can display progress.
@@ -38,6 +38,7 @@ import java.util.concurrent.CompletionException;
  * {@link DocumentStatus#FAILED} status on the document entity.
  *
  * @see DocumentStatusNotifier
+ * @see EmbeddingService
  * @see SummaryGenerationService
  * @see TextExtractionService
  */
@@ -49,6 +50,7 @@ public class DocumentProcessingService {
     private final DocumentChunkRepository documentChunkRepository;
     private final DocumentSummaryRepository documentSummaryRepository;
     private final ChunkingService chunkingService;
+    private final EmbeddingService embeddingService;
     private final TextExtractionService textExtractionService;
     private final SummaryGenerationService summaryGenerationService;
     private final DocumentStatusNotifier documentStatusNotifier;
@@ -60,6 +62,7 @@ public class DocumentProcessingService {
             DocumentChunkRepository documentChunkRepository,
             DocumentSummaryRepository documentSummaryRepository,
             ChunkingService chunkingService,
+            EmbeddingService embeddingService,
             TextExtractionService textExtractionService,
             SummaryGenerationService summaryGenerationService,
             DocumentStatusNotifier documentStatusNotifier,
@@ -70,6 +73,7 @@ public class DocumentProcessingService {
         this.documentChunkRepository = documentChunkRepository;
         this.documentSummaryRepository = documentSummaryRepository;
         this.chunkingService = chunkingService;
+        this.embeddingService = embeddingService;
         this.textExtractionService = textExtractionService;
         this.summaryGenerationService = summaryGenerationService;
         this.documentStatusNotifier = documentStatusNotifier;
@@ -93,7 +97,7 @@ public class DocumentProcessingService {
     public void processDocument(UUID documentId) {
         Document document = null;
         try {
-            documentStatusNotifier.notify(documentId, ProcessingStatusEvent.processing("Starting document processing..."));
+            documentStatusNotifier.notify(documentId, ProcessingStatusEvent.processing("Generating document summary..."));
 
             var documentResult = documentRepository.findById(documentId);
             if (documentResult.isEmpty()) {
@@ -117,10 +121,8 @@ public class DocumentProcessingService {
                 throw new DocumentProcessingException(documentId, ex);
             }
 
-            documentStatusNotifier.notify(documentId, ProcessingStatusEvent.processing("Splitting document into sections..."));
             createDocumentChunks(documentId, document, textToBeProcessed);
-
-            documentStatusNotifier.notify(documentId, ProcessingStatusEvent.processing("Generating document summary..."));
+            generateChunkEmbeddings(documentId);
             var documentSummaryResult = summaryGenerationService.generateDocumentSummary(textToBeProcessed);
 
             updateDocument(documentId, document, documentSummaryResult, textToBeProcessed);
@@ -148,7 +150,6 @@ public class DocumentProcessingService {
 
     private String getDocumentText(Document document) throws IOException {
 
-        documentStatusNotifier.notify(document.getId(), ProcessingStatusEvent.processing("Extracting text..."));
         String textToBeProcessed;
         // If the document is a PDF, extract its text.
         if (document.getInputType() == InputType.PDF) {
@@ -171,7 +172,6 @@ public class DocumentProcessingService {
             }
 
             try {
-                documentStatusNotifier.notify(document.getId(), ProcessingStatusEvent.processing("Extracting text from PDF..."));
                 textToBeProcessed = textExtractionService.extractText(rawDocumentStream);
             } catch (IOException ex) {
                 log.error("Unable to extract text from PDF", ex);
@@ -195,8 +195,6 @@ public class DocumentProcessingService {
             Document document,
             DocumentSummaryResult documentSummaryResult,
             String textToBeProcessed) {
-
-        documentStatusNotifier.notify(documentId, ProcessingStatusEvent.processing("Saving results..."));
 
         // Update document properties with LLM-generated values.
         document.setTitle(documentSummaryResult.title());
@@ -244,5 +242,33 @@ public class DocumentProcessingService {
             .toList();
 
         documentChunkRepository.saveAll(documentChunks);
+    }
+
+    /**
+     * Generates vector embeddings for all chunks of a document and persists
+     * them. The chunks must already exist in the database (created by
+     * {@link #createDocumentChunks}).
+     *
+     * <p>All chunk texts are embedded in a single batch API call to minimise
+     * HTTP round-trips. Each chunk entity is then updated with its embedding
+     * and saved back.
+     */
+    private void generateChunkEmbeddings(UUID documentId) {
+        var chunks = documentChunkRepository.findByDocumentIdOrderByChunkIndex(documentId);
+        if (chunks.isEmpty()) {
+            return;
+        }
+
+        var texts = chunks.stream()
+                .map(DocumentChunk::getContent)
+                .toList();
+
+        var embeddings = embeddingService.embedBatch(texts);
+
+        for (int i = 0; i < chunks.size(); i++) {
+            chunks.get(i).setEmbedding(embeddings.get(i));
+        }
+
+        documentChunkRepository.saveAll(chunks);
     }
 }

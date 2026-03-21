@@ -38,6 +38,9 @@ dependencies {
         // Prevent accidental importing of JUnit 4 classes.
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
     }
+    // Spring AI types for integration tests that mock ChatModel and EmbeddingModel.
+    // Not needed in main code — the service module owns the Spring AI dependency.
+    testImplementation("org.springframework.ai:spring-ai-starter-model-openai")
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")

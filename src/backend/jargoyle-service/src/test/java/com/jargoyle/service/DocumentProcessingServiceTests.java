@@ -3,6 +3,7 @@ package com.jargoyle.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jargoyle.dto.*;
 import com.jargoyle.entity.*;
+import com.jargoyle.repository.DocumentChunkRepository;
 import com.jargoyle.repository.DocumentRepository;
 import com.jargoyle.repository.DocumentSummaryRepository;
 import com.jargoyle.service.storage.StorageLoadException;
@@ -29,7 +30,9 @@ import static org.mockito.Mockito.*;
 public class DocumentProcessingServiceTests {
 
     private DocumentRepository mockDocumentRepository;
+    private DocumentChunkRepository mockDocumentChunkRepository;
     private DocumentSummaryRepository mockDocumentSummaryRepository;
+    private ChunkingService mockChunkingService;
     private TextExtractionService mockTextExtractionService;
     private SummaryGenerationService mockSummaryGenerationService;
     private DocumentStatusNotifier mockDocumentStatusNotifier;
@@ -45,7 +48,9 @@ public class DocumentProcessingServiceTests {
     @BeforeEach
     void setUp() {
         mockDocumentRepository = mock(DocumentRepository.class);
+        mockDocumentChunkRepository = mock(DocumentChunkRepository.class);
         mockDocumentSummaryRepository = mock(DocumentSummaryRepository.class);
+        mockChunkingService = mock(ChunkingService.class);
         mockTextExtractionService = mock(TextExtractionService.class);
         mockSummaryGenerationService = mock(SummaryGenerationService.class);
         mockDocumentStatusNotifier = mock(DocumentStatusNotifier.class);
@@ -54,7 +59,9 @@ public class DocumentProcessingServiceTests {
 
         sut = new DocumentProcessingService(
                 mockDocumentRepository,
+                mockDocumentChunkRepository,
                 mockDocumentSummaryRepository,
+                mockChunkingService,
                 mockTextExtractionService,
                 mockSummaryGenerationService,
                 mockDocumentStatusNotifier,
@@ -95,6 +102,13 @@ public class DocumentProcessingServiceTests {
         when(mockTextExtractionService.extractText(any(InputStream.class))).thenReturn(EXTRACTED_TEXT);
     }
 
+    private void setUpChunking() {
+        when(mockChunkingService.chunkText(EXTRACTED_TEXT)).thenReturn(List.of(
+                new ChunkingService.TextChunk(0, "Chunk one", 25),
+                new ChunkingService.TextChunk(1, "Chunk two", 20)));
+        when(mockDocumentChunkRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
     // ── Happy-path tests ────────────────────────────────────────────
 
     @Test
@@ -102,11 +116,13 @@ public class DocumentProcessingServiceTests {
         var document = createDocument(InputType.PDF);
         setUpDocumentFound(document);
         setUpPdfStorageAndExtraction();
+        setUpChunking();
         when(mockSummaryGenerationService.generateDocumentSummary(EXTRACTED_TEXT)).thenReturn(createSummaryResult());
 
         sut.processDocument(DOCUMENT_ID);
 
         verify(mockTextExtractionService).extractText(any(InputStream.class));
+        verify(mockChunkingService).chunkText(EXTRACTED_TEXT);
         verify(mockSummaryGenerationService).generateDocumentSummary(EXTRACTED_TEXT);
         assertThat(document.getStatus()).isEqualTo(DocumentStatus.READY);
         assertThat(document.getTitle()).isEqualTo("Sample Contract");
@@ -116,12 +132,14 @@ public class DocumentProcessingServiceTests {
     void processDocument_textDocument_usesExtractedTextDirectly() {
         var document = createDocument(InputType.TEXT);
         setUpDocumentFound(document);
+        setUpChunking();
         when(mockSummaryGenerationService.generateDocumentSummary(EXTRACTED_TEXT)).thenReturn(createSummaryResult());
 
         sut.processDocument(DOCUMENT_ID);
 
         verifyNoInteractions(mockStorageService);
         verifyNoInteractions(mockTextExtractionService);
+        verify(mockChunkingService).chunkText(EXTRACTED_TEXT);
         verify(mockSummaryGenerationService).generateDocumentSummary(EXTRACTED_TEXT);
         assertThat(document.getStatus()).isEqualTo(DocumentStatus.READY);
     }
@@ -130,6 +148,7 @@ public class DocumentProcessingServiceTests {
     void processDocument_validDocument_persistsSummaryWithSerialisedJson() {
         var document = createDocument(InputType.TEXT);
         setUpDocumentFound(document);
+        setUpChunking();
         var summaryResult = createSummaryResult();
         when(mockSummaryGenerationService.generateDocumentSummary(EXTRACTED_TEXT)).thenReturn(summaryResult);
 
@@ -150,6 +169,7 @@ public class DocumentProcessingServiceTests {
     void processDocument_validDocument_setsDocumentTypeFromSummaryResult() {
         var document = createDocument(InputType.TEXT);
         setUpDocumentFound(document);
+        setUpChunking();
         when(mockSummaryGenerationService.generateDocumentSummary(EXTRACTED_TEXT)).thenReturn(createSummaryResult());
 
         sut.processDocument(DOCUMENT_ID);
@@ -163,6 +183,7 @@ public class DocumentProcessingServiceTests {
     void processDocument_validDocument_transitionsStatusInCorrectOrder() {
         var document = createDocument(InputType.TEXT);
         setUpDocumentFound(document);
+        setUpChunking();
         when(mockSummaryGenerationService.generateDocumentSummary(EXTRACTED_TEXT)).thenReturn(createSummaryResult());
 
         // Capture the status at the moment each save occurs, because the
@@ -185,6 +206,7 @@ public class DocumentProcessingServiceTests {
     void processDocument_validDocument_emitsNotificationsInOrder() {
         var document = createDocument(InputType.TEXT);
         setUpDocumentFound(document);
+        setUpChunking();
         when(mockSummaryGenerationService.generateDocumentSummary(EXTRACTED_TEXT)).thenReturn(createSummaryResult());
 
         sut.processDocument(DOCUMENT_ID);
@@ -235,7 +257,7 @@ public class DocumentProcessingServiceTests {
         var document = createDocument(InputType.TEXT);
         document.setExtractedText(null); // Will cause NPE during getText
         setUpDocumentFound(document);
-        // SummaryGenerationService will receive null, which should cause an issue
+        when(mockChunkingService.chunkText(null)).thenReturn(List.of());
         when(mockSummaryGenerationService.generateDocumentSummary(null))
                 .thenThrow(new NullPointerException());
 
@@ -278,6 +300,7 @@ public class DocumentProcessingServiceTests {
     void processDocument_summaryGenerationFails_setsStatusToFailed() {
         var document = createDocument(InputType.TEXT);
         setUpDocumentFound(document);
+        setUpChunking();
         when(mockSummaryGenerationService.generateDocumentSummary(EXTRACTED_TEXT))
                 .thenThrow(new RuntimeException("LLM service unavailable"));
 
@@ -315,5 +338,40 @@ public class DocumentProcessingServiceTests {
         assertThat(document.getStatus()).isEqualTo(DocumentStatus.FAILED);
         verify(mockDocumentStatusNotifier).notify(eq(DOCUMENT_ID), argThat(e -> "FAILED".equals(e.status())));
         verify(mockDocumentStatusNotifier).complete(DOCUMENT_ID);
+    }
+
+    @Test
+    void processDocument_validDocument_persistsDocumentChunks() {
+        var document = createDocument(InputType.TEXT);
+        setUpDocumentFound(document);
+        setUpChunking();
+        when(mockSummaryGenerationService.generateDocumentSummary(EXTRACTED_TEXT)).thenReturn(createSummaryResult());
+
+        sut.processDocument(DOCUMENT_ID);
+
+        verify(mockDocumentChunkRepository).deleteByDocumentId(DOCUMENT_ID);
+
+        var chunkCaptor = ArgumentCaptor.forClass(List.class);
+        verify(mockDocumentChunkRepository).saveAll(chunkCaptor.capture());
+
+        @SuppressWarnings("unchecked")
+        var savedChunks = (List<DocumentChunk>) chunkCaptor.getValue();
+        assertThat(savedChunks).hasSize(2);
+        assertThat(savedChunks).extracting(DocumentChunk::getChunkIndex).containsExactly(0, 1);
+        assertThat(savedChunks).extracting(DocumentChunk::getContent).containsExactly("Chunk one", "Chunk two");
+        assertThat(savedChunks).extracting(DocumentChunk::getTokenCount).containsExactly(25, 20);
+    }
+
+    @Test
+    void processDocument_chunkingFails_setsStatusToFailed() {
+        var document = createDocument(InputType.TEXT);
+        setUpDocumentFound(document);
+        when(mockChunkingService.chunkText(EXTRACTED_TEXT)).thenThrow(new RuntimeException("Chunking failed"));
+
+        sut.processDocument(DOCUMENT_ID);
+
+        assertThat(document.getStatus()).isEqualTo(DocumentStatus.FAILED);
+        assertThat(document.getErrorMessage()).contains("Chunking failed");
+        verify(mockSummaryGenerationService, never()).generateDocumentSummary(any());
     }
 }

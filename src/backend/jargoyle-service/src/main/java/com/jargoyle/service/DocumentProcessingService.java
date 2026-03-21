@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jargoyle.dto.DocumentSummaryResult;
 import com.jargoyle.dto.ProcessingStatusEvent;
 import com.jargoyle.entity.*;
+import com.jargoyle.repository.DocumentChunkRepository;
 import com.jargoyle.repository.DocumentSummaryRepository;
 import com.jargoyle.service.exception.DocumentNotFoundException;
 import com.jargoyle.service.exception.DocumentProcessingException;
@@ -45,7 +46,9 @@ public class DocumentProcessingService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentProcessingService.class);
     private final DocumentRepository documentRepository;
+    private final DocumentChunkRepository documentChunkRepository;
     private final DocumentSummaryRepository documentSummaryRepository;
+    private final ChunkingService chunkingService;
     private final TextExtractionService textExtractionService;
     private final SummaryGenerationService summaryGenerationService;
     private final DocumentStatusNotifier documentStatusNotifier;
@@ -54,7 +57,9 @@ public class DocumentProcessingService {
 
     public DocumentProcessingService(
             DocumentRepository documentRepository,
+            DocumentChunkRepository documentChunkRepository,
             DocumentSummaryRepository documentSummaryRepository,
+            ChunkingService chunkingService,
             TextExtractionService textExtractionService,
             SummaryGenerationService summaryGenerationService,
             DocumentStatusNotifier documentStatusNotifier,
@@ -62,7 +67,9 @@ public class DocumentProcessingService {
             ObjectMapper objectMapper) {
 
         this.documentRepository = documentRepository;
+        this.documentChunkRepository = documentChunkRepository;
         this.documentSummaryRepository = documentSummaryRepository;
+        this.chunkingService = chunkingService;
         this.textExtractionService = textExtractionService;
         this.summaryGenerationService = summaryGenerationService;
         this.documentStatusNotifier = documentStatusNotifier;
@@ -109,6 +116,9 @@ public class DocumentProcessingService {
             } catch (IOException ex) {
                 throw new DocumentProcessingException(documentId, ex);
             }
+
+            documentStatusNotifier.notify(documentId, ProcessingStatusEvent.processing("Splitting document into sections..."));
+            createDocumentChunks(documentId, document, textToBeProcessed);
 
             documentStatusNotifier.notify(documentId, ProcessingStatusEvent.processing("Generating document summary..."));
             var documentSummaryResult = summaryGenerationService.generateDocumentSummary(textToBeProcessed);
@@ -209,5 +219,30 @@ public class DocumentProcessingService {
         var keyFactsJson = objectMapper.writeValueAsString(documentSummaryResult.keyFacts());
         documentSummary.setKeyFacts(keyFactsJson);
         documentSummaryRepository.save(documentSummary);
+    }
+
+    /**
+     * Rebuilds the stored chunk list for a document from its extracted text.
+     *
+     * <p>Existing chunks are deleted first so a retry or reprocessing run does
+     * not leave duplicate rows behind. Embeddings are intentionally not set here;
+     * they are populated in the later embedding step.
+     */
+    private void createDocumentChunks(UUID documentId, Document document, String extractedText) {
+        documentChunkRepository.deleteByDocumentId(documentId);
+
+        var documentChunks = chunkingService.chunkText(extractedText)
+            .stream()
+            .map(textChunk -> {
+                var documentChunk = new DocumentChunk();
+                documentChunk.setDocument(document);
+                documentChunk.setChunkIndex(textChunk.index());
+                documentChunk.setContent(textChunk.content());
+                documentChunk.setTokenCount(textChunk.tokenCount());
+                return documentChunk;
+            })
+            .toList();
+
+        documentChunkRepository.saveAll(documentChunks);
     }
 }

@@ -87,4 +87,5 @@ Users have a `role` field (`Role` enum: `USER`, `ADMIN`) stored as a string in t
 - **Never commit unless explicitly asked** — "implement" or "fix" does not mean "commit"
 - **Short, descriptive commit messages**
 - **Break commits into small, logical chunks** wherever possible — each commit should represent a single cohesive change (e.g. introduce a new service and its tests in one commit, then wire it into an existing component in a separate commit). Avoid bundling unrelated changes into a single commit
+- **Add Javadoc comments** to all new top-level types (classes, interfaces, records, enums) and to all methods. The only exception is trivially obvious methods such as simple getters or one-line delegates — when in doubt, add the Javadoc rather than omit it
 - Use the `product-owner` agent (via Task tool) for all GitHub issue/ticket operations

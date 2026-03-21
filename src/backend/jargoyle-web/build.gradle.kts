@@ -14,6 +14,11 @@ dependencies {
     // Web
     implementation("org.springframework.boot:spring-boot-starter-web")
 
+    // Reactor — needed because ConversationController returns Flux<ChatStreamEvent>
+    // for SSE streaming. The type comes from jargoyle-service's ChatService, but
+    // reactor-core is scoped as 'implementation' there, so it's not transitive.
+    implementation("io.projectreactor:reactor-core")
+
     // Persistence
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     runtimeOnly("org.postgresql:postgresql")

@@ -1,0 +1,16 @@
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Suppress Spring AI's MessageAggregator ERROR logs that fire when
+         error-handling tests deliberately feed Flux.error() to the ChatModel.
+         These stack traces are expected behaviour, not test failures. -->
+    <logger name="org.springframework.ai.chat.model.MessageAggregator" level="OFF" />
+
+    <root level="WARN">
+        <appender-ref ref="CONSOLE" />
+    </root>
+</configuration>

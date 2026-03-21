@@ -54,4 +54,8 @@ jargoyle:
       max-pool-size: 5
       queue-capacity: 25
       thread-name-prefix: doc-processing
-      
+  rag:
+    chunk:
+      target-tokens: 500
+      overlap-tokens: 50
+      min-tokens: 100

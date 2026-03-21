@@ -46,6 +46,9 @@ spring:
       chat:
         options:
           model: gpt-5.4-mini
+      embedding:
+        options:
+          model: text-embedding-3-small
 
 jargoyle:
   async:

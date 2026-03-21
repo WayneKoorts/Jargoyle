@@ -86,5 +86,6 @@ Users have a `role` field (`Role` enum: `USER`, `ADMIN`) stored as a string in t
 - Use British English everywhere: code, comments, commit messages, documentation, and user-facing copy
 - Never commit unless explicitly asked
 - If asked to commit, commits must be signed
-- Keep commit messages short and descriptive, with small logical commits
+- Keep commit messages short and descriptive
+- Break commits into small, logical chunks wherever possible. Each commit should represent a single cohesive change — for example, introducing a new service and its tests in one commit, then wiring it into an existing component in a separate commit. Avoid bundling unrelated changes into a single commit
 - Use the `product-owner` agent for GitHub issue or ticket operations

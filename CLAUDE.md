@@ -85,5 +85,6 @@ Users have a `role` field (`Role` enum: `USER`, `ADMIN`) stored as a string in t
 - **British English** everywhere: code, comments, commit messages, documentation (e.g. "colour", "organisation", "initialise")
 - **Unsigned commits are forbidden** — GPG/SSH signing must be available
 - **Never commit unless explicitly asked** — "implement" or "fix" does not mean "commit"
-- **Short, descriptive commit messages** committed in small, logical chunks
+- **Short, descriptive commit messages**
+- **Break commits into small, logical chunks** wherever possible — each commit should represent a single cohesive change (e.g. introduce a new service and its tests in one commit, then wire it into an existing component in a separate commit). Avoid bundling unrelated changes into a single commit
 - Use the `product-owner` agent (via Task tool) for all GitHub issue/ticket operations

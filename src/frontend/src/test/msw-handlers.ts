@@ -179,4 +179,76 @@ export const handlers = [
   http.delete('/api/admin/users/:id', () => {
     return new HttpResponse(null, { status: 204 })
   }),
+
+  // Conversations — create
+  http.post('/api/documents/:documentId/conversations', ({ params }) => {
+    return HttpResponse.json(
+      {
+        id: 'conv-1',
+        documentId: params.documentId,
+        suggestedQuestions: [
+          { text: 'What is the main topic?', category: 'General' },
+          { text: 'Are there any costs mentioned?', category: 'Costs' },
+        ],
+      },
+      { status: 201 },
+    )
+  }),
+
+  // Conversations — list for document
+  http.get('/api/documents/:documentId/conversations', ({ params }) => {
+    return HttpResponse.json([
+      {
+        id: 'conv-1',
+        documentId: params.documentId,
+        title: 'New conversation',
+        messageCount: 2,
+        createdAt: '2026-03-20T10:00:00Z',
+        lastMessageAt: '2026-03-20T10:05:00Z',
+      },
+    ])
+  }),
+
+  // Messages — paginated list (newest-first)
+  http.get('/api/conversations/:conversationId/messages', () => {
+    return HttpResponse.json({
+      content: [
+        {
+          id: 'msg-2',
+          role: 'ASSISTANT',
+          content: 'This document is a utility bill.',
+          sourceChunks: [{ chunkId: 'chunk-1', chunkIndex: 0, preview: 'Your monthly...' }],
+          createdAt: '2026-03-20T10:01:00Z',
+        },
+        {
+          id: 'msg-1',
+          role: 'USER',
+          content: 'What is this document about?',
+          sourceChunks: null,
+          createdAt: '2026-03-20T10:00:00Z',
+        },
+      ],
+      number: 0,
+      size: 50,
+      totalElements: 2,
+      totalPages: 1,
+      numberOfElements: 2,
+      first: true,
+      last: true,
+      empty: false,
+    })
+  }),
+
+  // Chat — SSE stream response
+  http.post('/api/conversations/:conversationId/messages', () => {
+    const sseBody = [
+      'data: {"type":"TOKEN","content":"This is ","messageId":null,"sourceChunks":null}\n\n',
+      'data: {"type":"TOKEN","content":"a response.","messageId":null,"sourceChunks":null}\n\n',
+      'data: {"type":"COMPLETE","content":null,"messageId":"msg-3","sourceChunks":[{"chunkId":"chunk-1","chunkIndex":0,"preview":"Your monthly..."}]}\n\n',
+    ].join('')
+    return new HttpResponse(sseBody, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    })
+  }),
 ]

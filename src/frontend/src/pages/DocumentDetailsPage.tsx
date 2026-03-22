@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { UserProfile } from '../api/auth'
+import type { SuggestedQuestion } from '../api/conversations'
 import {
   DOCUMENT_TYPE_LABELS,
   INPUT_TYPE_LABELS,
@@ -12,7 +13,10 @@ import {
   type FlaggedTerm,
 } from '../api/documents'
 import Layout from '../components/Layout'
-import ChatPane from '../components/ChatPane'
+import ChatInterface from '../components/chat/ChatInterface'
+import ConversationSidebar from '../components/chat/ConversationSidebar'
+import { useConversations } from '../hooks/useConversations'
+import { useCreateConversation } from '../hooks/useCreateConversation'
 import { useDeleteDocument } from '../hooks/useDeleteDocument'
 import { useDocument } from '../hooks/useDocument'
 import { useDocumentStatus } from '../hooks/useDocumentStatus'
@@ -40,13 +44,18 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { document, isLoading, isError, refetch } = useDocument(id)
+
+  // Chat drawer state — hidden by default
   const [isChatOpen, setIsChatOpen] = useState(false)
+
+  // Active conversation and suggested questions for the chat panel
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const [suggestedQuestions, setSuggestedQuestions] = useState<SuggestedQuestion[]>([])
 
   // Kebab dropdown menu
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // Close the menu when clicking outside
   const handleClickOutside = useCallback((e: MouseEvent) => {
     if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
       setIsMenuOpen(false)
@@ -76,6 +85,50 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
       refetch()
     }
   }, [isComplete, isFailed, refetch])
+
+  // Conversation management — only active when the document is READY
+  const isReady = document?.status === 'READY'
+  const { conversations, isLoading: conversationsLoading } = useConversations(isReady ? document!.id : '')
+  const createConversation = useCreateConversation(document?.id ?? '')
+
+  // Guard ref to prevent double-creation in React StrictMode
+  const autoCreatedRef = useRef(false)
+
+  // Auto-create a conversation on first visit to a READY document with none
+  useEffect(() => {
+    if (
+      isReady
+      && !conversationsLoading
+      && conversations.length === 0
+      && activeConversationId === null
+      && !createConversation.isPending
+      && !autoCreatedRef.current
+    ) {
+      autoCreatedRef.current = true
+      createConversation.mutateAsync().then((result) => {
+        setActiveConversationId(result.id)
+        setSuggestedQuestions(result.suggestedQuestions)
+      })
+    }
+  }, [isReady, conversationsLoading, conversations.length, activeConversationId, createConversation])
+
+  // Derive the effective conversation ID: use the explicit selection if set,
+  // otherwise fall back to the most recent conversation.
+  const effectiveConversationId = activeConversationId ?? conversations[0]?.id ?? null
+
+  function handleSelectConversation(conversationId: string) {
+    setActiveConversationId(conversationId)
+    setSuggestedQuestions([])
+  }
+
+  function handleNewConversation() {
+    createConversation.mutateAsync().then((result) => {
+      setActiveConversationId(result.id)
+      setSuggestedQuestions(result.suggestedQuestions)
+    })
+  }
+
+  // --- Early returns for loading/error states ---
 
   if (isLoading) {
     return (
@@ -111,203 +164,341 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
   const keyFacts: KeyFacts = summary ? parseKeyFacts(summary.keyFacts) : { amounts: [], dates: [], parties: [] }
   const hasKeyFacts = keyFacts.amounts.length > 0 || keyFacts.dates.length > 0 || keyFacts.parties.length > 0
 
+  // --- Non-READY states: single-column layout ---
+
+  if (!isReady) {
+    return (
+      <Layout user={user} onLogout={onLogout}>
+        <div className="mx-auto max-w-4xl px-6 py-8">
+          <TopBar
+            title={title}
+            document={document}
+            isMenuOpen={isMenuOpen}
+            setIsMenuOpen={setIsMenuOpen}
+            menuRef={menuRef}
+            deleteDialogRef={deleteDialogRef}
+          />
+
+          {isProcessing && (
+            <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-start gap-3">
+                <div
+                  role="status"
+                  aria-label="Document processing"
+                  className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center"
+                >
+                  <span className="sr-only">Document processing</span>
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-amber-300 border-t-amber-700" />
+                </div>
+                <div>
+                  <p className="font-medium text-amber-800">{STATUS_LABELS[document.status] ?? document.status}</p>
+                  {step && <p className="mt-1 text-sm text-amber-700">{step}</p>}
+                </div>
+              </div>
+              {sseError && <p className="mt-1 text-sm text-red-600">{sseError}</p>}
+            </div>
+          )}
+
+          {document.status === 'FAILED' && (
+            <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
+              <p className="font-medium text-red-800">Processing failed</p>
+              {document.errorMessage && (
+                <p className="mt-1 text-sm text-red-700">{document.errorMessage}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <DeleteDialog
+          title={title}
+          documentId={document.id}
+          deleteDialogRef={deleteDialogRef}
+          deleteMutation={deleteMutation}
+          navigate={navigate}
+        />
+      </Layout>
+    )
+  }
+
+  // --- READY state: full-width summary with collapsible chat drawer ---
+
   return (
-    <Layout user={user} onLogout={onLogout}>
-      <div className="mx-auto max-w-4xl px-6 py-8">
-        {/* Top bar: back link + actions */}
-        <div className="mb-6 flex items-center justify-between">
-          <Link to="/" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-            &larr; Back to documents
-          </Link>
-          <div className="flex items-center gap-2">
-            {document.status === 'READY' && (
-              <button
-                onClick={() => setIsChatOpen(true)}
-                className="rounded-md border border-indigo-600 px-3 py-1.5 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50"
-              >
-                Ask a question
-              </button>
-            )}
-            {/* Kebab menu */}
-            <div ref={menuRef} className="relative">
-              <button
-                onClick={() => setIsMenuOpen((prev) => !prev)}
-                className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-                aria-label="More actions"
-              >
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                </svg>
-              </button>
-              {isMenuOpen && (
-                <div className="absolute right-0 z-10 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false)
-                      deleteDialogRef.current?.showModal()
-                    }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                    </svg>
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+    <Layout user={user} onLogout={onLogout} fullHeight>
+      {/* Top bar */}
+      <div className="shrink-0 border-b border-slate-200 px-6 py-3">
+        <TopBar
+          title={title}
+          document={document}
+          isMenuOpen={isMenuOpen}
+          setIsMenuOpen={setIsMenuOpen}
+          menuRef={menuRef}
+          deleteDialogRef={deleteDialogRef}
+          chatToggle={
+            <button
+              onClick={() => setIsChatOpen((prev) => !prev)}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                isChatOpen
+                  ? 'border border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              }`}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+              </svg>
+              {isChatOpen ? 'Hide chat' : 'Ask AI about this document'}
+            </button>
+          }
+        />
+      </div>
 
-        {/* Title + metadata */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className={`text-2xl font-bold ${document.title ? 'text-slate-900' : 'italic text-slate-500'}`}>
-              {title}
-            </h2>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-              <span>{DOCUMENT_TYPE_LABELS[document.documentType] ?? 'Unknown'}</span>
-              <span className="text-slate-300">&middot;</span>
-              <span>{INPUT_TYPE_LABELS[document.inputType] ?? document.inputType}</span>
-              {document.originalFilename && (
-                <>
-                  <span className="text-slate-300">&middot;</span>
-                  <span className="truncate max-w-[200px]">{document.originalFilename}</span>
-                </>
-              )}
-              <span className="text-slate-300">&middot;</span>
-              <span>{formatDate(document.createdAt)}</span>
-            </div>
-          </div>
-          <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${statusClasses(document.status)}`}>
-            {STATUS_LABELS[document.status] ?? document.status}
-          </span>
-        </div>
+      {/* Main content area */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Summary panel — takes remaining space */}
+        <div className={`flex-1 overflow-y-auto ${isChatOpen ? 'hidden md:block' : ''}`}>
+          <div className="mx-auto max-w-4xl px-6 py-6">
+            {summary && (
+              <div className="space-y-8">
+                {/* Flagged Terms */}
+                <section className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-6">
+                  <h3 className="text-lg font-semibold text-slate-900">Jargon Explained</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Plain-English definitions for the technical terms in your document.
+                  </p>
 
-        {/* Processing state */}
-        {isProcessing && (
-          <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
-            <div className="flex items-start gap-3">
-              <div
-                role="status"
-                aria-label="Document processing"
-                className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center"
-              >
-                <span className="sr-only">Document processing</span>
-                <span className="h-5 w-5 animate-spin rounded-full border-2 border-amber-300 border-t-amber-700" />
-              </div>
-              <div>
-                <p className="font-medium text-amber-800">{STATUS_LABELS[document.status] ?? document.status}</p>
-                {step && <p className="mt-1 text-sm text-amber-700">{step}</p>}
-              </div>
-            </div>
-            {sseError && <p className="mt-1 text-sm text-red-600">{sseError}</p>}
-          </div>
-        )}
-
-        {/* Failed state */}
-        {document.status === 'FAILED' && (
-          <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
-            <p className="font-medium text-red-800">Processing failed</p>
-            {document.errorMessage && (
-              <p className="mt-1 text-sm text-red-700">{document.errorMessage}</p>
-            )}
-          </div>
-        )}
-
-        {/* Ready state — full results */}
-        {document.status === 'READY' && summary && (
-          <div className="mt-8 space-y-8">
-            {/* Flagged Terms — the visual centrepiece */}
-            <section className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-6">
-              <h3 className="text-lg font-semibold text-slate-900">Jargon Explained</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                Plain-English definitions for the technical terms in your document.
-              </p>
-
-              {flaggedTerms.length > 0 ? (
-                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {flaggedTerms.map((item, i) => (
-                    <div
-                      key={i}
-                      className="rounded-md border-l-4 border-indigo-400 bg-white p-4 shadow-sm"
-                    >
-                      <p className="font-semibold text-slate-900">{item.term}</p>
-                      <p className="mt-1 text-sm text-slate-600">{item.definition}</p>
+                  {flaggedTerms.length > 0 ? (
+                    <div className="mt-4 space-y-4">
+                      {flaggedTerms.map((item, i) => (
+                        <div
+                          key={i}
+                          className="rounded-md border-l-4 border-indigo-400 bg-white p-4 shadow-sm"
+                        >
+                          <p className="font-semibold text-slate-900">{item.term}</p>
+                          <p className="mt-1 text-sm text-slate-600">{item.definition}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-4 text-sm text-slate-400">
-                  No technical jargon was detected in this document.
-                </p>
-              )}
-            </section>
+                  ) : (
+                    <p className="mt-4 text-sm text-slate-400">
+                      No technical jargon was detected in this document.
+                    </p>
+                  )}
+                </section>
 
-            {/* Summary */}
-            <section className="rounded-lg border border-slate-200 bg-white p-6">
-              <h3 className="text-lg font-semibold text-slate-900">Summary</h3>
-              <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-700">
-                {summary.plainSummary}
-              </p>
-            </section>
+                {/* Summary */}
+                <section className="rounded-lg border border-slate-200 bg-white p-6">
+                  <h3 className="text-lg font-semibold text-slate-900">Summary</h3>
+                  <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-700">
+                    {summary.plainSummary}
+                  </p>
+                </section>
 
-            {/* Key Facts */}
-            {hasKeyFacts && (
-              <section className="rounded-lg border border-slate-200 bg-white p-6">
-                <h3 className="text-lg font-semibold text-slate-900">Key Facts</h3>
-                <div className="mt-4 space-y-5">
-                  <KeyFactGroup label="Amounts" facts={keyFacts.amounts} />
-                  <KeyFactGroup label="Dates" facts={keyFacts.dates} />
-                  <KeyFactGroup label="Parties" facts={keyFacts.parties} />
-                </div>
-              </section>
+                {/* Key Facts */}
+                {hasKeyFacts && (
+                  <section className="rounded-lg border border-slate-200 bg-white p-6">
+                    <h3 className="text-lg font-semibold text-slate-900">Key Facts</h3>
+                    <div className="mt-4 space-y-5">
+                      <KeyFactGroup label="Amounts" facts={keyFacts.amounts} />
+                      <KeyFactGroup label="Dates" facts={keyFacts.dates} />
+                      <KeyFactGroup label="Parties" facts={keyFacts.parties} />
+                    </div>
+                  </section>
+                )}
+              </div>
             )}
+          </div>
+        </div>
+
+        {/* Chat panel — on the right */}
+        {/* Chat panel — on the right */}
+        {isChatOpen && (
+          <div className="flex w-full flex-col border-l border-slate-200 bg-slate-50 md:w-[clamp(450px,30%,600px)]">
+            {/* Chat header with conversation selector */}
+            <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2">
+              <ConversationSidebar
+                documentId={document.id}
+                activeConversationId={effectiveConversationId}
+                onSelect={handleSelectConversation}
+                onNewConversation={handleNewConversation}
+              />
+            </div>
+
+            {/* Chat content */}
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {effectiveConversationId ? (
+                <ChatInterface
+                  key={effectiveConversationId}
+                  conversationId={effectiveConversationId}
+                  suggestedQuestions={suggestedQuestions}
+                />
+              ) : (
+                <div className="flex flex-1 items-center justify-center">
+                  <p className="text-sm text-slate-400">
+                    {createConversation.isPending ? 'Starting conversation…' : 'Select a conversation'}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Delete confirmation dialog */}
-      <dialog
-        ref={deleteDialogRef}
-        onClick={(e) => { if (e.target === deleteDialogRef.current) deleteDialogRef.current.close() }}
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-xl border-0 p-0 shadow-xl backdrop:bg-black/50"
-      >
-        <div className="p-6">
-          <h3 className="text-lg font-semibold text-slate-900">Delete document</h3>
-          <p className="mt-2 text-sm text-slate-600">
-            Are you sure you want to delete <span className="font-medium text-slate-900">{title}</span>? This action cannot be undone.
-          </p>
-          {deleteMutation.error && (
-            <p className="mt-3 text-sm text-red-600">{deleteMutation.error.message}</p>
-          )}
-          <div className="mt-6 flex justify-end gap-3">
+      <DeleteDialog
+        title={title}
+        documentId={document.id}
+        deleteDialogRef={deleteDialogRef}
+        deleteMutation={deleteMutation}
+        navigate={navigate}
+      />
+    </Layout>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+/** Top bar with back link, title, metadata, status badge, and kebab menu. */
+function TopBar({
+  title,
+  document,
+  isMenuOpen,
+  setIsMenuOpen,
+  menuRef,
+  deleteDialogRef,
+  chatToggle,
+}: {
+  title: string
+  document: { title: string | null; documentType: string; inputType: string; originalFilename: string | null; status: string; createdAt: string }
+  isMenuOpen: boolean
+  setIsMenuOpen: (open: boolean | ((prev: boolean) => boolean)) => void
+  menuRef: React.RefObject<HTMLDivElement | null>
+  deleteDialogRef: React.RefObject<HTMLDialogElement | null>
+  chatToggle?: React.ReactNode
+}) {
+  return (
+    <>
+      <div className="mb-4 flex items-center justify-between">
+        <Link to="/" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+          &larr; Back to documents
+        </Link>
+        <div className="flex items-center gap-2">
+          {/* Kebab menu */}
+          <div ref={menuRef} className="relative">
             <button
-              onClick={() => { deleteMutation.reset(); deleteDialogRef.current?.close() }}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              onClick={() => setIsMenuOpen((prev: boolean) => !prev)}
+              className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              aria-label="More actions"
             >
-              Cancel
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+              </svg>
             </button>
-            <button
-              disabled={deleteMutation.isPending}
-              onClick={() => {
-                deleteMutation.mutate(document.id, {
-                  onSuccess: () => {
-                    deleteDialogRef.current?.close()
-                    navigate('/')
-                  },
-                })
-              }}
-              className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
-            >
-              {deleteMutation.isPending ? 'Deleting\u2026' : 'Delete'}
-            </button>
+            {isMenuOpen && (
+              <div className="absolute right-0 z-10 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false)
+                    deleteDialogRef.current?.showModal()
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                  </svg>
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      </dialog>
+      </div>
 
-      <ChatPane open={isChatOpen} onClose={() => setIsChatOpen(false)} />
-    </Layout>
+      {/* Title */}
+      <h2 className={`text-2xl font-bold ${document.title ? 'text-slate-900' : 'italic text-slate-500'}`}>
+        {title}
+      </h2>
+
+      {/* Metadata + status badge — all on one line */}
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+        <span>{DOCUMENT_TYPE_LABELS[document.documentType] ?? 'Unknown'}</span>
+        <span className="text-slate-300">&middot;</span>
+        <span>{INPUT_TYPE_LABELS[document.inputType] ?? document.inputType}</span>
+        {document.originalFilename && (
+          <>
+            <span className="text-slate-300">&middot;</span>
+            <span className="max-w-[200px] truncate">{document.originalFilename}</span>
+          </>
+        )}
+        <span className="text-slate-300">&middot;</span>
+        <span>{formatDate(document.createdAt)}</span>
+        <span className="text-slate-300">&middot;</span>
+        <span className={`rounded px-2 py-0.5 text-xs font-medium ${statusClasses(document.status)}`}>
+          {STATUS_LABELS[document.status] ?? document.status}
+        </span>
+        {/* Chat toggle — pushed to the right edge */}
+        {chatToggle && (
+          <>
+            <span className="flex-1" />
+            {chatToggle}
+          </>
+        )}
+      </div>
+    </>
+  )
+}
+
+/** Delete confirmation dialog. */
+function DeleteDialog({
+  title,
+  documentId,
+  deleteDialogRef,
+  deleteMutation,
+  navigate,
+}: {
+  title: string
+  documentId: string
+  deleteDialogRef: React.RefObject<HTMLDialogElement | null>
+  deleteMutation: ReturnType<typeof useDeleteDocument>
+  navigate: ReturnType<typeof useNavigate>
+}) {
+  return (
+    <dialog
+      ref={deleteDialogRef}
+      onClick={(e) => { if (e.target === deleteDialogRef.current) deleteDialogRef.current.close() }}
+      className="fixed left-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border-0 p-0 shadow-xl backdrop:bg-black/50"
+    >
+      <div className="p-6">
+        <h3 className="text-lg font-semibold text-slate-900">Delete document</h3>
+        <p className="mt-2 text-sm text-slate-600">
+          Are you sure you want to delete <span className="font-medium text-slate-900">{title}</span>? This action cannot be undone.
+        </p>
+        {deleteMutation.error && (
+          <p className="mt-3 text-sm text-red-600">{deleteMutation.error.message}</p>
+        )}
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={() => { deleteMutation.reset(); deleteDialogRef.current?.close() }}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              deleteMutation.mutate(documentId, {
+                onSuccess: () => {
+                  deleteDialogRef.current?.close()
+                  navigate('/')
+                },
+              })
+            }}
+            className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+          >
+            {deleteMutation.isPending ? 'Deleting\u2026' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    </dialog>
   )
 }
 

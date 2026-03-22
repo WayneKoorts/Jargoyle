@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import { Route, Routes } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
 import { vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
 import type { UserProfile } from '../api/auth'
 import DocumentDetailsPage from './DocumentDetailsPage'
 import { server } from '../test/msw-server'
@@ -11,6 +12,27 @@ import { displayTitle } from '../utils/display'
 
 vi.mock('../hooks/useDocumentStatus', () => ({
   useDocumentStatus: vi.fn(),
+}))
+
+// Mock the chat hooks to isolate page-level behaviour from hook internals.
+vi.mock('../hooks/useMessages', () => ({
+  useMessages: vi.fn().mockReturnValue({
+    messages: [],
+    isLoading: false,
+    loadMore: vi.fn(),
+    hasMore: false,
+    isLoadingMore: false,
+  }),
+}))
+
+vi.mock('../hooks/useChatStream', () => ({
+  useChatStream: vi.fn().mockReturnValue({
+    sendMessage: vi.fn(),
+    streamingContent: '',
+    isStreaming: false,
+    error: null,
+    optimisticMessage: null,
+  }),
 }))
 
 const mockUseDocumentStatus = vi.mocked(useDocumentStatus)
@@ -39,6 +61,37 @@ function renderPage() {
   )
 }
 
+/** Helper to set up a READY document with summary data. */
+function useReadyDocument() {
+  mockUseDocumentStatus.mockReturnValue({
+    status: null,
+    step: null,
+    errorMessage: null,
+    isComplete: false,
+    isFailed: false,
+  })
+
+  server.use(
+    http.get('/api/documents/:id', ({ params }) => {
+      return HttpResponse.json({
+        id: params.id,
+        title: 'My Electricity Bill',
+        documentType: 'BILL',
+        inputType: 'PDF',
+        originalFilename: 'bill.pdf',
+        status: 'READY',
+        errorMessage: null,
+        summary: {
+          plainSummary: 'This is your monthly electricity bill.',
+          keyFacts: '{"amounts":[{"label":"Total","value":"£150","context":"monthly"}],"dates":[],"parties":[]}',
+          flaggedTerms: '[{"term":"kWh","definition":"Kilowatt-hours, a unit of energy"}]',
+        },
+        createdAt: '2026-03-01T12:00:00Z',
+      })
+    }),
+  )
+}
+
 describe('DocumentDetailsPage', () => {
   beforeEach(() => {
     mockUseDocumentStatus.mockReturnValue({
@@ -53,6 +106,8 @@ describe('DocumentDetailsPage', () => {
   afterEach(() => {
     mockUseDocumentStatus.mockReset()
   })
+
+  // --- Processing state tests ---
 
   it('shows the derived temporary title and spinner while processing', async () => {
     const originalFilename = 'extremely-long-document-name-that-needs-truncating.pdf'
@@ -143,5 +198,79 @@ describe('DocumentDetailsPage', () => {
 
     expect(screen.queryByRole('status', { name: 'Document processing' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 2, name: 'processing-title.pdf' })).not.toBeInTheDocument()
+  })
+
+  // --- READY state / collapsible chat tests ---
+
+  it('shows summary content when document is READY', async () => {
+    useReadyDocument()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 2, name: 'My Electricity Bill' })).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('This is your monthly electricity bill.')).toBeInTheDocument()
+    expect(screen.getByText('kWh')).toBeInTheDocument()
+    expect(screen.getByText('Kilowatt-hours, a unit of energy')).toBeInTheDocument()
+  })
+
+  it('shows the "Ask AI" button when document is READY', async () => {
+    useReadyDocument()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 2, name: 'My Electricity Bill' })).toBeInTheDocument()
+    })
+
+    expect(screen.getByRole('button', { name: /Ask AI about this document/i })).toBeInTheDocument()
+  })
+
+  it('opens the chat drawer when "Ask AI" button is clicked', async () => {
+    useReadyDocument()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 2, name: 'My Electricity Bill' })).toBeInTheDocument()
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: /Ask AI about this document/i }))
+
+    // Button label toggles to "Hide chat" when drawer is open
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Hide chat/i })).toBeInTheDocument()
+    })
+  })
+
+  it('toggles the chat drawer closed when "Hide chat" is clicked', async () => {
+    useReadyDocument()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 2, name: 'My Electricity Bill' })).toBeInTheDocument()
+    })
+
+    // Open the chat
+    await userEvent.click(screen.getByRole('button', { name: /Ask AI about this document/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Hide chat/i })).toBeInTheDocument()
+    })
+
+    // Close via the same toggle button
+    await userEvent.click(screen.getByRole('button', { name: /Hide chat/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Ask AI about this document/i })).toBeInTheDocument()
+    })
+  })
+
+  it('shows key facts in the summary panel', async () => {
+    useReadyDocument()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('£150')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('Total')).toBeInTheDocument()
   })
 })

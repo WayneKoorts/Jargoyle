@@ -2,15 +2,18 @@ package com.jargoyle.service;
 
 import com.jargoyle.dto.DocumentSummaryResult;
 import com.jargoyle.entity.DocumentType;
+import com.jargoyle.service.converter.DuplicateKeyTolerantOutputConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.converter.StructuredOutputConverter;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SummaryGenerationService {
 
     private final ChatClient chatClient;
+    private final StructuredOutputConverter<DocumentSummaryResult> summaryConverter;
     private static final Logger log = LoggerFactory.getLogger(SummaryGenerationService.class);
 
     public SummaryGenerationService(ChatClient.Builder chatClientBuilder) {
@@ -22,6 +25,9 @@ public class SummaryGenerationService {
                     laypeople can understand their contents.
                     """)
                 .build();
+        // Wraps BeanOutputConverter with JSON deduplication to handle LLMs
+        // emitting the same key twice (which breaks Jackson record deserialisation).
+        this.summaryConverter = new DuplicateKeyTolerantOutputConverter<>(DocumentSummaryResult.class);
     }
 
     public DocumentSummaryResult generateDocumentSummary(String extractedText) {
@@ -43,7 +49,7 @@ public class SummaryGenerationService {
                         .param("types", String.join(", ", DocumentType.names()))
                         .param("text", extractedText))
                 .call()
-                .entity(DocumentSummaryResult.class);
+                .entity(summaryConverter);
 
         if (result != null) {
             log.debug("Generated document summary for document titled \"{}\"", result.title());

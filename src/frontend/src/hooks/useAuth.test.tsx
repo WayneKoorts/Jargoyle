@@ -41,6 +41,7 @@ describe('useAuth', () => {
           displayName: 'Admin User',
           oauthProvider: 'google',
           role: 'ADMIN',
+          enabled: true,
         })
       }),
     )
@@ -81,6 +82,31 @@ describe('useAuth', () => {
     })
 
     expect(result.current.isAuthenticated).toBe(false)
+  })
+
+  it('isEnabled is false when the account is disabled', async () => {
+    server.use(
+      http.get('/api/auth/me', () => {
+        return HttpResponse.json({
+          id: 'user-2',
+          email: 'pending@example.com',
+          displayName: 'Pending User',
+          oauthProvider: 'google',
+          role: 'USER',
+          enabled: false,
+        })
+      }),
+    )
+
+    const { Wrapper } = createWrapper()
+    const { result } = renderHook(() => useAuth(), { wrapper: Wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(result.current.isAuthenticated).toBe(true)
+    expect(result.current.isEnabled).toBe(false)
   })
 
   it('isLoading is true initially', () => {

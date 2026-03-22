@@ -12,6 +12,7 @@ function makeUser(overrides: Partial<AdminUser> = {}): AdminUser {
     displayName: 'Test User',
     oauthProvider: 'google',
     role: 'USER',
+    enabled: true,
     createdAt: '2026-03-01T12:00:00Z',
     lastLoginAt: null,
     ...overrides,
@@ -71,10 +72,10 @@ describe('UserList', () => {
     expect(screen.getByText('No users found.')).toBeInTheDocument()
   })
 
-  it('renders user cards with name, email, and role badge', () => {
+  it('renders user cards with name, email, role badge, and enabled status', () => {
     const users = [
-      makeUser({ id: 'u1', displayName: 'Alice', email: 'alice@example.com', role: 'ADMIN' }),
-      makeUser({ id: 'u2', displayName: 'Bob', email: 'bob@example.com', role: 'USER' }),
+      makeUser({ id: 'u1', displayName: 'Alice', email: 'alice@example.com', role: 'ADMIN', enabled: true }),
+      makeUser({ id: 'u2', displayName: 'Bob', email: 'bob@example.com', role: 'USER', enabled: false }),
     ]
 
     renderWithProviders(
@@ -84,8 +85,10 @@ describe('UserList', () => {
     expect(screen.getByText('Alice')).toBeInTheDocument()
     expect(screen.getByText('alice@example.com')).toBeInTheDocument()
     expect(screen.getByText('ADMIN')).toBeInTheDocument()
+    expect(screen.getByText('Enabled')).toBeInTheDocument()
     expect(screen.getByText('Bob')).toBeInTheDocument()
     expect(screen.getByText('bob@example.com')).toBeInTheDocument()
+    expect(screen.getByText('Disabled')).toBeInTheDocument()
     expect(screen.getByText('2 users')).toBeInTheDocument()
   })
 

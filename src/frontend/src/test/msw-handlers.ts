@@ -14,6 +14,7 @@ export const handlers = [
       displayName: 'Test User',
       oauthProvider: 'google',
       role: 'USER',
+      enabled: true,
     })
   }),
 
@@ -126,6 +127,7 @@ export const handlers = [
           displayName: 'Admin User',
           oauthProvider: 'google',
           role: 'ADMIN',
+          enabled: true,
           createdAt: '2026-01-15T10:00:00Z',
           lastLoginAt: '2026-03-18T09:00:00Z',
         },
@@ -135,6 +137,7 @@ export const handlers = [
           displayName: 'Regular User',
           oauthProvider: 'google',
           role: 'USER',
+          enabled: false,
           createdAt: '2026-02-20T14:00:00Z',
           lastLoginAt: null,
         },
@@ -156,6 +159,7 @@ export const handlers = [
       displayName: 'Regular User',
       oauthProvider: 'google',
       role: 'USER',
+      enabled: false,
       createdAt: '2026-02-20T14:00:00Z',
       lastLoginAt: null,
     })
@@ -163,13 +167,14 @@ export const handlers = [
 
   // Admin — update user
   http.put('/api/admin/users/:id', async ({ params, request }) => {
-    const body = await request.json() as Record<string, string>
+    const body = await request.json() as Record<string, string | boolean>
     return HttpResponse.json({
       id: params.id,
       email: body.email ?? 'regular@example.com',
       displayName: body.displayName ?? 'Regular User',
       oauthProvider: 'google',
       role: body.role ?? 'USER',
+      enabled: body.enabled ?? false,
       createdAt: '2026-02-20T14:00:00Z',
       lastLoginAt: null,
     })

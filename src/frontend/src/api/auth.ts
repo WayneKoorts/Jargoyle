@@ -6,6 +6,7 @@ export interface UserProfile {
   displayName: string
   oauthProvider: string
   role: string
+  enabled: boolean
 }
 
 export function fetchCurrentUser(): Promise<UserProfile> {
@@ -15,4 +16,3 @@ export function fetchCurrentUser(): Promise<UserProfile> {
 export function logout(): Promise<void> {
   return apiClient('/auth/logout', { method: 'POST' })
 }
-

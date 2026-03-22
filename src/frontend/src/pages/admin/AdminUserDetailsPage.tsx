@@ -17,6 +17,11 @@ const ROLE_COLOURS: Record<string, string> = {
   ADMIN: 'bg-amber-100 text-amber-800',
 }
 
+const STATUS_COLOURS = {
+  enabled: 'bg-emerald-100 text-emerald-800',
+  disabled: 'bg-rose-100 text-rose-800',
+} as const
+
 export default function AdminUserDetailsPage({ user: currentUser, onLogout }: AdminUserDetailsPageProps) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -46,12 +51,14 @@ export default function AdminUserDetailsPage({ user: currentUser, onLogout }: Ad
   const [editedDisplayName, setEditedDisplayName] = useState<string | null>(null)
   const [editedEmail, setEditedEmail] = useState<string | null>(null)
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
+  const [selectedEnabled, setSelectedEnabled] = useState<boolean | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
   // Effective values: local edits fall back to server data
   const effectiveDisplayName = editedDisplayName ?? targetUser?.displayName ?? ''
   const effectiveEmail = editedEmail ?? targetUser?.email ?? ''
   const effectiveRole = selectedRole ?? targetUser?.role ?? 'USER'
+  const effectiveEnabled = selectedEnabled ?? targetUser?.enabled ?? false
 
   // Self-protection: disable role editing for your own account
   const isSelf = currentUser.id === id
@@ -60,7 +67,8 @@ export default function AdminUserDetailsPage({ user: currentUser, onLogout }: Ad
   const hasChanges = targetUser != null && (
     effectiveDisplayName !== targetUser.displayName ||
     effectiveEmail !== targetUser.email ||
-    effectiveRole !== targetUser.role
+    effectiveRole !== targetUser.role ||
+    effectiveEnabled !== targetUser.enabled
   )
 
   if (isLoading) {
@@ -101,6 +109,7 @@ export default function AdminUserDetailsPage({ user: currentUser, onLogout }: Ad
           role: effectiveRole,
           displayName: effectiveDisplayName,
           email: effectiveEmail,
+          enabled: effectiveEnabled,
         },
       },
       {
@@ -110,6 +119,7 @@ export default function AdminUserDetailsPage({ user: currentUser, onLogout }: Ad
           setEditedDisplayName(null)
           setEditedEmail(null)
           setSelectedRole(null)
+          setSelectedEnabled(null)
         },
       },
     )
@@ -119,6 +129,7 @@ export default function AdminUserDetailsPage({ user: currentUser, onLogout }: Ad
     setEditedDisplayName(null)
     setEditedEmail(null)
     setSelectedRole(null)
+    setSelectedEnabled(null)
     setSaveSuccess(false)
     updateMutation.reset()
   }
@@ -142,6 +153,13 @@ export default function AdminUserDetailsPage({ user: currentUser, onLogout }: Ad
             <div className="flex items-center gap-2">
               <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${ROLE_COLOURS[targetUser.role] ?? 'bg-slate-100 text-slate-700'}`}>
                 {targetUser.role}
+              </span>
+              <span
+                className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${
+                  effectiveEnabled ? STATUS_COLOURS.enabled : STATUS_COLOURS.disabled
+                }`}
+              >
+                {effectiveEnabled ? 'Enabled' : 'Disabled'}
               </span>
               {/* Kebab menu */}
               <div ref={menuRef} className="relative">
@@ -224,6 +242,33 @@ export default function AdminUserDetailsPage({ user: currentUser, onLogout }: Ad
                 <option value="USER">USER</option>
                 <option value="ADMIN">ADMIN</option>
               </select>
+            </div>
+
+            <div>
+              <label htmlFor="edit-enabled" className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Access
+              </label>
+              <label
+                htmlFor="edit-enabled"
+                className="mt-1 flex cursor-pointer items-start gap-3 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+              >
+                <input
+                  id="edit-enabled"
+                  type="checkbox"
+                  checked={effectiveEnabled}
+                  onChange={(e) => { setSelectedEnabled(e.target.checked); setSaveSuccess(false) }}
+                  disabled={updateMutation.isPending}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600"
+                />
+                <span>
+                  <span className="block font-medium text-slate-900">
+                    {effectiveEnabled ? 'User can access the application' : 'User is blocked until enabled'}
+                  </span>
+                  <span className="block text-xs text-slate-500">
+                    New OAuth sign-ups start disabled until an admin enables them.
+                  </span>
+                </span>
+              </label>
             </div>
 
             {/* Read-only: OAuth Provider */}

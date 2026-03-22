@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { updateAdminUser, type UpdateUserRequest } from '../api/admin'
 
 /**
- * React Query mutation for updating a user's role (admin only).
+ * React Query mutation for updating an admin-managed user record.
  *
  * On success, invalidates both the user list and the individual user
  * cache so all views reflect the change immediately.

@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
@@ -21,14 +22,17 @@ import com.jargoyle.service.CustomOidcUserService;
 public class SecurityConfig {
 
     private final CustomOidcUserService _customOidcUserService;
+    private final EnabledUserFilter _enabledUserFilter;
     private final Optional<OAuth2AuthorizationRequestResolver> _authorizationRequestResolver;
     private final String _oauthSuccessUrl;
 
     public SecurityConfig(
             CustomOidcUserService customOidcUserService,
+            EnabledUserFilter enabledUserFilter,
             Optional<OAuth2AuthorizationRequestResolver> authorizationRequestResolver,
             @Value("${spring.oauth-success-url:/}") String oauthSuccessUrl) {
         _customOidcUserService = customOidcUserService;
+        _enabledUserFilter = enabledUserFilter;
         _authorizationRequestResolver = authorizationRequestResolver;
         _oauthSuccessUrl = oauthSuccessUrl;
     }
@@ -81,6 +85,7 @@ public class SecurityConfig {
                 .ignoringRequestMatchers("/api/**")
             )
             .logout(logout -> logout.logoutSuccessUrl("/"))
+            .addFilterAfter(_enabledUserFilter, AnonymousAuthenticationFilter.class)
             .build();
     }    
 }

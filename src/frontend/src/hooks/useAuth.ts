@@ -13,6 +13,7 @@ export function useAuth() {
 
   const isAuthenticated = !!user && !isError
   const isAdmin = user?.role === 'ADMIN'
+  const isEnabled = user?.enabled ?? false
 
   async function logout() {
     // Clear the cached user immediately so the UI switches to the login page
@@ -22,5 +23,5 @@ export function useAuth() {
     queryClient.removeQueries({ queryKey: ['auth', 'me'] })
   }
 
-  return { user, isLoading, isAuthenticated, isAdmin, logout }
+  return { user, isLoading, isAuthenticated, isAdmin, isEnabled, logout }
 }

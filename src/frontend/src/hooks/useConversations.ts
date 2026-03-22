@@ -11,6 +11,9 @@ export function useConversations(documentId: string) {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['conversations', documentId],
     queryFn: () => fetchConversations(documentId),
+    // Skip the query when no documentId is provided — e.g. when the
+    // document page is still loading or the document isn't READY yet.
+    enabled: documentId.length > 0,
   })
 
   return {

@@ -100,6 +100,7 @@ public class ChatService {
     private final DocumentChunkRepository documentChunkRepository;
     private final DocumentSummaryRepository documentSummaryRepository;
     private final EmbeddingService embeddingService;
+    private final TitleGenerationService titleGenerationService;
     private final RetrievalProperties retrievalProperties;
     private final ChatProperties chatProperties;
 
@@ -117,6 +118,7 @@ public class ChatService {
      * @param documentChunkRepository  for retrieving similar chunks
      * @param documentSummaryRepository for loading the document's plain summary
      * @param embeddingService         for embedding the user's question
+     * @param titleGenerationService   for generating conversation titles via LLM
      * @param retrievalProperties      retrieval configuration (top-K)
      * @param chatProperties           chat prompt budget configuration
      */
@@ -127,6 +129,7 @@ public class ChatService {
             DocumentChunkRepository documentChunkRepository,
             DocumentSummaryRepository documentSummaryRepository,
             EmbeddingService embeddingService,
+            TitleGenerationService titleGenerationService,
             RetrievalProperties retrievalProperties,
             ChatProperties chatProperties) {
 
@@ -136,6 +139,7 @@ public class ChatService {
         this.documentChunkRepository = documentChunkRepository;
         this.documentSummaryRepository = documentSummaryRepository;
         this.embeddingService = embeddingService;
+        this.titleGenerationService = titleGenerationService;
         this.retrievalProperties = retrievalProperties;
         this.chatProperties = chatProperties;
     }
@@ -207,6 +211,7 @@ public class ChatService {
                                 conversation,
                                 responseBuilder.toString(),
                                 sourceChunkReferences);
+                        generateTitleIfNeeded(conversation, userQuestion);
                         return Flux.just(ChatStreamEvent.complete(
                                 assistantMessage.getId().toString(),
                                 sourceChunkReferences));
@@ -467,6 +472,33 @@ public class ChatService {
         message.setSourceChunks(sourceChunks);
         message.setTokenCount(estimateTokenCount(responseContent));
         return messageRepository.save(message);
+    }
+
+    /**
+     * Generates and persists a conversation title when this is the first
+     * message exchange. Uses the user's opening question to produce a short,
+     * descriptive title via the LLM.
+     *
+     * <p>Title generation failures are logged but never propagated — the
+     * conversation continues to work with a {@code null} title, displayed
+     * as "New conversation" in the frontend.
+     */
+    private void generateTitleIfNeeded(Conversation conversation, String userQuestion) {
+        if (conversation.getTitle() != null) {
+            return;
+        }
+        try {
+            var title = titleGenerationService.generateTitle(userQuestion);
+            if (title != null && !title.isBlank()) {
+                conversation.setTitle(title);
+                conversationRepository.save(conversation);
+                log.debug("Generated title \"{}\" for conversation {}",
+                        title, conversation.getId());
+            }
+        } catch (Exception ex) {
+            log.warn("Title generation failed for conversation {}; leaving title as null",
+                    conversation.getId(), ex);
+        }
     }
 
     /**

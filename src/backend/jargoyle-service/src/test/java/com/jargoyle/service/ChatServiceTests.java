@@ -65,6 +65,7 @@ public class ChatServiceTests {
     private DocumentChunkRepository mockDocumentChunkRepository;
     private DocumentSummaryRepository mockDocumentSummaryRepository;
     private EmbeddingService mockEmbeddingService;
+    private TitleGenerationService mockTitleGenerationService;
     private RetrievalProperties retrievalProperties;
     private ChatProperties chatProperties;
     private ChatService sut;
@@ -82,6 +83,7 @@ public class ChatServiceTests {
         mockDocumentChunkRepository = mock(DocumentChunkRepository.class);
         mockDocumentSummaryRepository = mock(DocumentSummaryRepository.class);
         mockEmbeddingService = mock(EmbeddingService.class);
+        mockTitleGenerationService = mock(TitleGenerationService.class);
         retrievalProperties = new RetrievalProperties(100_000, 200);
         chatProperties = new ChatProperties(10, 2000, 4000);
 
@@ -92,6 +94,7 @@ public class ChatServiceTests {
                 mockDocumentChunkRepository,
                 mockDocumentSummaryRepository,
                 mockEmbeddingService,
+                mockTitleGenerationService,
                 retrievalProperties,
                 chatProperties);
     }
@@ -665,6 +668,61 @@ public class ChatServiceTests {
         @Test
         void estimateTokenCount_nullString_returnsZero() {
             assertThat(sut.estimateTokenCount(null)).isEqualTo(0);
+        }
+    }
+
+    // ── Title generation tests ────────────────────────────────────────
+
+    @Nested
+    class TitleGeneration {
+
+        @Test
+        void chat_firstMessage_generatesTitleAndSaves() {
+            var conversation = setUpHappyPath("Response.");
+            when(mockTitleGenerationService.generateTitle(userQuestion))
+                    .thenReturn("Total amount due");
+
+            sut.chat(conversationId, userId, userQuestion).blockLast();
+
+            verify(conversation).setTitle("Total amount due");
+            // save() is called for lastMessageAt and again for the title.
+            verify(mockConversationRepository, org.mockito.Mockito.atLeast(2))
+                    .save(conversation);
+        }
+
+        @Test
+        void chat_conversationAlreadyHasTitle_doesNotGenerateTitle() {
+            var conversation = setUpHappyPath("Response.");
+            when(conversation.getTitle()).thenReturn("Existing title");
+
+            sut.chat(conversationId, userId, userQuestion).blockLast();
+
+            verify(mockTitleGenerationService, never()).generateTitle(any());
+        }
+
+        @Test
+        void chat_titleGenerationFails_stillEmitsCompleteEvent() {
+            setUpHappyPath("Response.");
+            when(mockTitleGenerationService.generateTitle(any()))
+                    .thenThrow(new RuntimeException("LLM unavailable"));
+
+            var result = sut.chat(conversationId, userId, userQuestion);
+
+            StepVerifier.create(result)
+                    .expectNextMatches(event -> "TOKEN".equals(event.type()))
+                    .expectNextMatches(event -> "COMPLETE".equals(event.type()))
+                    .verifyComplete();
+        }
+
+        @Test
+        void chat_titleGenerationReturnsNull_doesNotSetTitle() {
+            var conversation = setUpHappyPath("Response.");
+            when(mockTitleGenerationService.generateTitle(any()))
+                    .thenReturn(null);
+
+            sut.chat(conversationId, userId, userQuestion).blockLast();
+
+            verify(conversation, never()).setTitle(any());
         }
     }
 }

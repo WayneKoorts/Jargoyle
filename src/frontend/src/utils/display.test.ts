@@ -1,4 +1,4 @@
-import { displayTitle, displayUserName, truncateWithEllipsis, formatDate, formatFileSize } from './display'
+import { displayTitle, displayUserName, truncateWithEllipsis, formatDate, formatFileSize, formatRelativeTime } from './display'
 import type { DocumentSummary } from '../api/documents'
 
 /** Helper to build a minimal DocumentSummary with overrides */
@@ -109,5 +109,32 @@ describe('formatDate', () => {
   it('handles different dates correctly', () => {
     const result = formatDate('2025-01-01T00:00:00Z')
     expect(result).toMatch(/\d{1,2} \w{3} \d{4}/)
+  })
+})
+
+describe('formatRelativeTime', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-22T12:00:00Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('returns "just now" for timestamps less than a minute ago', () => {
+    expect(formatRelativeTime('2026-03-22T11:59:30Z')).toBe('just now')
+  })
+
+  it('returns minutes for timestamps less than an hour ago', () => {
+    expect(formatRelativeTime('2026-03-22T11:55:00Z')).toBe('5 min ago')
+  })
+
+  it('returns hours for timestamps less than a day ago', () => {
+    expect(formatRelativeTime('2026-03-22T09:00:00Z')).toBe('3 hr ago')
+  })
+
+  it('returns days for timestamps more than a day ago', () => {
+    expect(formatRelativeTime('2026-03-17T12:00:00Z')).toBe('5 days ago')
   })
 })

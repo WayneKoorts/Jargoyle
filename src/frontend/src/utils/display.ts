@@ -53,3 +53,26 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
+
+/**
+ * Formats an ISO date string as a human-readable relative time
+ * (e.g. "just now", "3 min ago", "2 hr ago", "5 days ago").
+ *
+ * Used in the ConversationSidebar to show when each conversation
+ * was last active without cluttering the UI with full timestamps.
+ */
+export function formatRelativeTime(iso: string): string {
+  const diffSeconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+
+  if (diffSeconds < 60) return 'just now'
+  if (diffSeconds < 3600) {
+    const minutes = Math.floor(diffSeconds / 60)
+    return `${minutes} min ago`
+  }
+  if (diffSeconds < 86400) {
+    const hours = Math.floor(diffSeconds / 3600)
+    return `${hours} hr ago`
+  }
+  const days = Math.floor(diffSeconds / 86400)
+  return `${days} days ago`
+}

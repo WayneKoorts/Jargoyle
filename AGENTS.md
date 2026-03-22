@@ -19,14 +19,14 @@ The full specification lives in `design/1-jargoyle-spec.md`. Phase-specific desi
 - `src/backend/` - Gradle multi-project build
   - `jargoyle-model/` - JPA entities, DTOs, enums
   - `jargoyle-repository/` - Spring Data JPA repositories
-  - `jargoyle-service/` - Business logic, security resolution, storage, text extraction
+  - `jargoyle-service/` - Business logic: document processing, RAG/chat orchestration, storage, security resolution
   - `jargoyle-web/` - Spring Boot application (controllers, config, entry point)
 - `src/frontend/` - React SPA (React 19, TypeScript, Vite, Tailwind CSS)
 - `design/` - Project specification and design documents
 
 ## Tech Stack
 
-Backend: Java 25, Spring Boot 4.0.3, Gradle 9.3.1 (Kotlin DSL), PostgreSQL (+ pgvector planned)
+Backend: Java 25, Spring Boot 4.0.3, Spring AI (OpenAI), Gradle 9.3.1 (Kotlin DSL), PostgreSQL + pgvector
 Frontend: React 19, TypeScript 5.9, Vite 7.3, Tailwind CSS 4.2, Vitest 4, React Testing Library, MSW 2
 
 ## Build Commands
@@ -65,12 +65,22 @@ npm run test:watch   # Run tests in watch mode
 - Database migrations: Flyway, migration files go in `jargoyle-web/src/main/resources/db/migration/`
 - Test naming: `*Tests` suffix, for example `JargoyleApplicationTests`
 - Integration tests: Testcontainers with PostgreSQL
+- Service split pattern: Separate CRUD services from orchestration services (e.g. `ConversationService` for CRUD, `ChatService` for RAG pipeline). Keeps each service focused and testable.
+- SSE streaming: Chat endpoints return `Flux<ChatStreamEvent>` with `produces = TEXT_EVENT_STREAM_VALUE`. Event types: `TOKEN`, `COMPLETE`, `ERROR`.
+- Ownership verification: Repository methods like `findByIdAndUserId` use JPQL joins to combine lookup and authorisation in a single query, throwing the appropriate `NotFoundException` if the join returns empty.
 
-Auto-configuration for DataSource, Hibernate, and Flyway is excluded in `application.yml` until a database is configured. Remove those exclusions when PostgreSQL is available.
+Auto-configuration for DataSource and Hibernate is excluded in the default `application.yml` profile so the application can start without a database. The `dev` and `prod` profiles override this with `exclude: []`, enabling full database support. When running locally, use the `dev` profile.
 
 `SecurityConfig.java` in `jargoyle-web` configures OAuth2/OIDC login with a custom user service. It also enables `@EnableMethodSecurity` for `@PreAuthorize` support and enforces role-based access on `/api/admin/**`, which requires the `ADMIN` role.
 
 Users have a `role` field (`Role` enum: `USER`, `ADMIN`) stored as a string in the database. The `CustomOidcUserService` injects the local role as a `GrantedAuthority` into the Spring Security context on login, so `hasRole('ADMIN')` works natively throughout the app.
+
+## Frontend Architecture
+
+- Component organisation: Feature-related components are grouped in subdirectories (e.g. `components/chat/`). General-purpose components sit directly in `components/`.
+- Hook patterns: React Query (`@tanstack/react-query`) drives all CRUD data fetching and mutations (e.g. `useConversations`, `useMessages`, `useCreateConversation`). Streaming operations that don't fit the request/response model use custom `useState`-based hooks (e.g. `useChatStream`).
+- API layer: TypeScript interfaces in `src/api/` mirror backend DTOs. SSE streaming uses an `AsyncGenerator` via raw `fetch` + `ReadableStream` (not `EventSource`, which only supports GET).
+- Layout modes: The `Layout` component supports a `fullHeight` mode for viewport-filling pages (e.g. the chat view) vs the default scrollable content area.
 
 ## Frontend Testing
 
@@ -78,7 +88,8 @@ Users have a `role` field (`Role` enum: `USER`, `ADMIN`) stored as a string in t
 - Test co-location: test files sit alongside source files, for example `ChatPane.tsx` and `ChatPane.test.tsx`
 - Shared infrastructure: `src/test/` contains setup, MSW handlers, and `renderWithProviders()` / `createTestQueryClient()` helpers
 - API mocking: MSW intercepts at the network level; default handlers live in `msw-handlers.ts`, with per-test overrides via `server.use(...)`
-- Extracted utilities: pure functions such as `displayTitle`, `formatDate`, `formatFileSize`, and `truncateWithEllipsis` live in `src/utils/display.ts`
+- Extracted utilities: pure functions such as `displayTitle`, `displayUserName`, `formatDate`, `formatFileSize`, `formatRelativeTime`, and `truncateWithEllipsis` live in `src/utils/display.ts`
+- SSE/streaming test patterns: `createSSEResponse()` builds a `Response` with a `ReadableStream` body for testing the `streamChat` async generator. Streaming hook tests mock the API module's generator function directly.
 - CI: frontend tests run in a separate `frontend-test` job in `.github/workflows/ci.yml`, publishing JUnit XML results
 
 ## Conventions
@@ -90,3 +101,4 @@ Users have a `role` field (`Role` enum: `USER`, `ADMIN`) stored as a string in t
 - Break commits into small, logical chunks wherever possible. Each commit should represent a single cohesive change — for example, introducing a new service and its tests in one commit, then wiring it into an existing component in a separate commit. Avoid bundling unrelated changes into a single commit
 - Add Javadoc comments to all new top-level types (classes, interfaces, records, enums) and to all methods. The only exception is trivially obvious methods such as simple getters or one-line delegates — when in doubt, add the Javadoc rather than omit it
 - Use the `product-owner` agent for GitHub issue or ticket operations
+- Agent instruction file sync: When updating any agent instruction file, update all three (`CLAUDE.md`, `.github/copilot-instructions.md`, `AGENTS.md`) — not just the one for the current agent

@@ -1,110 +1,108 @@
-import type { ReactNode } from 'react'
+import ReactMarkdown, { type Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface FormattedContentProps {
   text: string
 }
 
 /**
- * Renders chat message text with lightweight markdown formatting.
+ * Renders chat message text with Markdown formatting.
  *
- * Supports the subset of markdown that the AI typically uses in responses:
- * - **bold** (double asterisks)
- * - *italic* (single asterisks)
- * - `code` (backticks)
- * - Line breaks (preserved via block-level splitting)
- * - Lines starting with "- " rendered as list items
+ * Uses react-markdown with remark-gfm (GitHub Flavoured Markdown) to support
+ * the full range of formatting the AI produces: headings, bold, italic,
+ * strikethrough, inline code, fenced code blocks, ordered and unordered lists,
+ * tables, blockquotes, horizontal rules, and links.
  *
- * This avoids pulling in a full markdown library (react-markdown + remark)
- * for what amounts to inline formatting in short chat responses.
+ * Custom component overrides apply Tailwind styling appropriate for chat
+ * bubbles (scaled-down headings, horizontally scrollable tables and code
+ * blocks, etc.).
  */
 export default function FormattedContent({ text }: FormattedContentProps) {
-  const lines = text.split('\n')
-
   return (
     <div className="space-y-1">
-      {lines.map((line, i) => {
-        const trimmed = line.trimStart()
-
-        // List items: lines starting with "- " (possibly indented)
-        if (trimmed.startsWith('- ')) {
-          // Count leading spaces to determine nesting depth.
-          // Each 2 spaces of indentation = one nesting level.
-          const indent = line.length - line.trimStart().length
-          const depth = Math.floor(indent / 2)
-
-          return (
-            <div key={i} className="flex gap-2" style={{ paddingLeft: `${depth * 16 + 4}px` }}>
-              <span className="shrink-0 text-slate-400" style={{ fontSize: '1.25rem', lineHeight: '1.25rem' }}>{depth > 0 ? '◦' : '•'}</span>
-              <span>{parseInlineFormatting(trimmed.slice(2))}</span>
-            </div>
-          )
-        }
-
-        // Empty lines become spacing
-        if (trimmed === '') {
-          return <div key={i} className="h-2" />
-        }
-
-        // Regular paragraph
-        return <p key={i}>{parseInlineFormatting(line)}</p>
-      })}
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+        {text}
+      </ReactMarkdown>
     </div>
   )
 }
 
 /**
- * Parses inline markdown formatting into React elements.
+ * Custom component overrides for react-markdown.
  *
- * Processes in order of specificity: backtick code first (so asterisks
- * inside code spans aren't interpreted), then bold (**), then italic (*).
- * Each pass splits on the delimiter, wraps alternating segments in the
- * appropriate element, and recurses for nested formatting.
+ * Applies Tailwind CSS classes appropriate for rendering inside a chat bubble.
+ * Headings are scaled down, code blocks use a dark theme, and tables are
+ * wrapped in a horizontally scrollable container.
+ *
+ * For code elements, inline code gets a light pill-style background. Fenced
+ * code blocks are wrapped in a {@code <pre>} that resets the inline styling
+ * via Tailwind's child selector variant {@code [&>code]}.
  */
-function parseInlineFormatting(text: string): ReactNode {
-  return parseCode(text)
-}
+const markdownComponents: Components = {
+  // --- Headings (scaled for chat bubbles) ---
+  h1: ({ children }) => <h1 className="text-base font-bold mt-3 mb-1">{children}</h1>,
+  h2: ({ children }) => <h2 className="text-base font-semibold mt-3 mb-1">{children}</h2>,
+  h3: ({ children }) => <h3 className="text-sm font-semibold mt-2 mb-0.5">{children}</h3>,
+  h4: ({ children }) => <h4 className="text-sm font-semibold mt-2 mb-0.5">{children}</h4>,
+  h5: ({ children }) => <h5 className="text-sm font-semibold mt-1.5 mb-0.5">{children}</h5>,
+  h6: ({ children }) => <h6 className="text-sm font-semibold mt-1.5 mb-0.5">{children}</h6>,
 
-/** Splits on backtick-delimited code spans: `code` */
-function parseCode(text: string): ReactNode {
-  const parts = text.split(/(`[^`]+`)/)
-  if (parts.length === 1) return parseBold(text)
+  // --- Block elements ---
+  p: ({ children }) => <p className="my-1">{children}</p>,
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-3 border-slate-300 pl-3 italic text-slate-600">
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className="border-t border-slate-200 my-2" />,
 
-  return parts.map((part, i) => {
-    if (part.startsWith('`') && part.endsWith('`')) {
-      return (
-        <code key={i} className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs text-slate-800">
-          {part.slice(1, -1)}
-        </code>
-      )
-    }
-    return <span key={i}>{parseBold(part)}</span>
-  })
-}
+  // --- Lists ---
+  ul: ({ children }) => <ul className="list-disc pl-5 space-y-0.5">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-5 space-y-0.5">{children}</ol>,
 
-/** Splits on double-asterisk bold: **bold** */
-function parseBold(text: string): ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*)/)
-  if (parts.length === 1) return parseItalic(text)
+  // --- Code ---
+  // Fenced code blocks render as <pre><code>...</code></pre>.
+  // The [&>code] variants reset the inline code styling so the dark
+  // pre background shows through instead.
+  pre: ({ children }) => (
+    <pre className="my-2 rounded-lg bg-slate-800 text-slate-100 p-3 font-mono text-xs overflow-x-auto [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-inherit [&>code]:rounded-none">
+      {children}
+    </pre>
+  ),
+  code: ({ children }) => (
+    <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs text-slate-800">
+      {children}
+    </code>
+  ),
 
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-semibold">{parseItalic(part.slice(2, -2))}</strong>
-    }
-    return <span key={i}>{parseItalic(part)}</span>
-  })
-}
+  // --- Inline formatting ---
+  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  del: ({ children }) => <del className="line-through">{children}</del>,
 
-/** Splits on single-asterisk italic: *italic* */
-function parseItalic(text: string): ReactNode {
-  // Use a stricter regex to avoid matching bare asterisks in expressions like "2 * 3"
-  // Only match *word...* where the content doesn't start/end with a space
-  const parts = text.split(/(\*[^\s*][^*]*[^\s*]\*|\*[^\s*]\*)/)
-  if (parts.length === 1) return text
+  // --- Links (open in new tab for safety) ---
+  a: ({ children, href }) => (
+    <a
+      href={href}
+      className="text-indigo-600 underline hover:text-indigo-800"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {children}
+    </a>
+  ),
 
-  return parts.map((part, i) => {
-    if (part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) {
-      return <em key={i}>{part.slice(1, -1)}</em>
-    }
-    return <span key={i}>{part}</span>
-  })
+  // --- Tables (horizontally scrollable wrapper) ---
+  table: ({ children }) => (
+    <div className="my-2 overflow-x-auto">
+      <table className="min-w-full text-xs">{children}</table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th className="border-b border-slate-300 px-2 py-1 text-left font-semibold whitespace-nowrap">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border-b border-slate-200 px-2 py-1">{children}</td>
+  ),
 }

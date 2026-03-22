@@ -12,8 +12,10 @@ interface MessageBubbleProps {
  * Renders a single chat message as a styled bubble.
  *
  * User messages are right-aligned with an accent background and plain text.
- * Assistant messages are left-aligned with a light background and markdown
- * formatting (bold, italic, code, lists). Supports three transient states:
+ * Assistant messages are left-aligned with a light background and full
+ * Markdown rendering (headings, bold, italic, strikethrough, inline code,
+ * fenced code blocks, lists, tables, blockquotes, horizontal rules, and
+ * links) via {@link FormattedContent}. Supports three transient states:
  * - `isThinking` — animated dots before the first token arrives
  * - `isStreaming` — pulsing cursor appended to partial content
  * - default — completed message with optional source attribution

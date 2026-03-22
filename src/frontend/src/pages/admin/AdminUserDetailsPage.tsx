@@ -134,6 +134,11 @@ export default function AdminUserDetailsPage({ user: currentUser, onLogout }: Ad
     updateMutation.reset()
   }
 
+  function handleEnabledChange(enabled: boolean) {
+    setSelectedEnabled(enabled)
+    setSaveSuccess(false)
+  }
+
   return (
     <Layout user={currentUser} onLogout={onLogout} variant="admin">
       <div className="mx-auto max-w-4xl px-6 py-8">
@@ -256,7 +261,7 @@ export default function AdminUserDetailsPage({ user: currentUser, onLogout }: Ad
                   id="edit-enabled"
                   type="checkbox"
                   checked={effectiveEnabled}
-                  onChange={(e) => { setSelectedEnabled(e.target.checked); setSaveSuccess(false) }}
+                  onChange={(e) => handleEnabledChange(e.target.checked)}
                   disabled={updateMutation.isPending}
                   className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600"
                 />
@@ -265,7 +270,7 @@ export default function AdminUserDetailsPage({ user: currentUser, onLogout }: Ad
                     {effectiveEnabled ? 'User can access the application' : 'User is blocked until enabled'}
                   </span>
                   <span className="block text-xs text-slate-500">
-                    New OAuth sign-ups start disabled until an admin enables them.
+                    All new accounts require admin approval before access is granted.
                   </span>
                 </span>
               </label>

@@ -57,6 +57,8 @@ public class EnabledUserFilter extends OncePerRequestFilter {
         try {
             // Re-resolving the local user on each request means an admin's
             // enable/disable toggle applies to an existing session immediately.
+            // That does add one database lookup per protected request, but the
+            // immediate effect is worth the small cost for this pre-launch gate.
             var user = authenticatedUserResolver.resolve(oidcUser, authToken);
             if (!user.isEnabled()) {
                 response.sendError(HttpServletResponse.SC_FORBIDDEN, DISABLED_MESSAGE);

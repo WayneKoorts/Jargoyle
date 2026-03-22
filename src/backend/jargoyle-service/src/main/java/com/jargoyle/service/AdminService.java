@@ -54,7 +54,7 @@ public class AdminService {
         // Re-check the enabled admin count on every update so disabling an admin
         // takes effect immediately for existing sessions without leaving the
         // system with no enabled administrator who can reverse the change.
-        if (target.getRole() == Role.ADMIN && target.isEnabled() && (newRole != Role.ADMIN || !newEnabled)) {
+        if (isDisablingOrDemotingEnabledAdmin(target, newRole, newEnabled)) {
             if (userRepository.countByRoleAndEnabledTrue(Role.ADMIN) == 1) {
                 throw new AdminOperationException("Cannot disable the last enabled admin user");
             }
@@ -97,6 +97,12 @@ public class AdminService {
         }
 
         userRepository.deleteById(targetId);
+    }
+
+    private boolean isDisablingOrDemotingEnabledAdmin(User target, Role newRole, boolean newEnabled) {
+        return target.getRole() == Role.ADMIN
+            && target.isEnabled()
+            && (newRole != Role.ADMIN || !newEnabled);
     }
 
     private AdminUserDto toDto(User user) {

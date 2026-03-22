@@ -9,6 +9,9 @@ dependencies {
     // Validation annotations for DTOs
     api("jakarta.validation:jakarta.validation-api")
 
+    // Jackson annotations for explicit JSON mapping on record DTOs
+    api("com.fasterxml.jackson.core:jackson-annotations")
+
     // Hibernate annotations (@CreationTimestamp, @UpdateTimestamp)
     implementation("org.hibernate.orm:hibernate-core")
 

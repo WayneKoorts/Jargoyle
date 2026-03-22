@@ -1,4 +1,11 @@
 package com.jargoyle.dto;
 
-public record KeyFact(String label, String value, String context) {}
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+/** A single key fact extracted from a document. */
+public record KeyFact(
+        @JsonProperty("label") String label,
+        @JsonProperty("value") String value,
+        @JsonProperty("context") String context
+) {}
 

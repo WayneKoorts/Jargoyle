@@ -93,7 +93,7 @@ class DocumentChunkRepositoryTests {
     }
 
     @Test
-    void findTopKSimilar_requestTwo_returnsMultipleChunks() {
+    void findSimilarChunks_returnsChunksOrderedBySimilarity() {
         // Arrange
         // We use tiny 3D vectors to make the maths intuitive, padded to 1536
         // dimensions to match the column definition.
@@ -110,8 +110,8 @@ class DocumentChunkRepositoryTests {
 
         // Act
         var queryEmbedding = vectorToString(padVector(1f, 0f, 0f));
-        var topK = 2;
-        var result = documentChunkRepository.findTopKSimilar(testDocument1.getId(), queryEmbedding, topK);
+        var maxChunks = 2;
+        var result = documentChunkRepository.findSimilarChunks(testDocument1.getId(), queryEmbedding, maxChunks);
 
         // Assert
         assertThat(result).extracting(DocumentChunk::getContent)
@@ -119,7 +119,7 @@ class DocumentChunkRepositoryTests {
     }
 
     @Test
-    void findTopKSimilar_requestOne_returnsOneChunk() {
+    void findSimilarChunks_withLimit_respectsMaxChunks() {
         // Arrange
         var chunkA = createChunk(testDocument1, 0, "Closest chunk", padVector(0.9f, 0.1f, 0f));
         var chunkB = createChunk(testDocument1, 1, "Further chunk", padVector(0.1f, 0.9f, 0f));
@@ -129,8 +129,8 @@ class DocumentChunkRepositoryTests {
 
         // Act
         var queryEmbedding = vectorToString(padVector(1f, 0f, 0f));
-        var topK = 1;
-        var result = documentChunkRepository.findTopKSimilar(testDocument1.getId(), queryEmbedding, topK);
+        var maxChunks = 1;
+        var result = documentChunkRepository.findSimilarChunks(testDocument1.getId(), queryEmbedding, maxChunks);
 
         // Assert
         assertThat(result).extracting(DocumentChunk::getContent)
@@ -138,7 +138,7 @@ class DocumentChunkRepositoryTests {
     }
 
     @Test
-    void findTopKSimilar_multipleDocuments_returnsRequestedDocChunksOnly() {
+    void findSimilarChunks_multipleDocuments_returnsRequestedDocChunksOnly() {
         // Arrange
         var doc1Chunk = createChunk(testDocument1, 0, "Doc1 chunk", padVector(0.9f, 0.1f, 0f));
         var doc2Chunk = createChunk(testDocument2, 0, "Doc2 chunk", padVector(0.9f, 0.1f, 0f));
@@ -147,8 +147,8 @@ class DocumentChunkRepositoryTests {
 
         // Act
         var queryEmbedding = vectorToString(padVector(1f, 0f, 0f));
-        var topK = 10; // Request more chunks than exist to ensure we get all matches.
-        var result = documentChunkRepository.findTopKSimilar(testDocument1.getId(), queryEmbedding, topK);
+        var maxChunks = 10; // Request more chunks than exist to ensure we get all matches.
+        var result = documentChunkRepository.findSimilarChunks(testDocument1.getId(), queryEmbedding, maxChunks);
 
         // Assert
         assertThat(result).extracting(DocumentChunk::getContent)
@@ -156,7 +156,7 @@ class DocumentChunkRepositoryTests {
     }
 
     @Test
-    void findTopKSimilar_noMatchingChunks_returnsNoChunks() {
+    void findSimilarChunks_noMatchingChunks_returnsEmpty() {
         // Arrange
         var chunkA = createChunk(testDocument1, 0, "No embedding", null);
         documentChunkRepository.save(chunkA);
@@ -164,8 +164,8 @@ class DocumentChunkRepositoryTests {
 
         // Act
         var queryEmbedding = vectorToString(padVector(1f, 0f, 0f));
-        var topK = 2;
-        var result = documentChunkRepository.findTopKSimilar(testDocument1.getId(), queryEmbedding, topK);
+        var maxChunks = 2;
+        var result = documentChunkRepository.findSimilarChunks(testDocument1.getId(), queryEmbedding, maxChunks);
 
         // Assert
         assertThat(result).isEmpty();

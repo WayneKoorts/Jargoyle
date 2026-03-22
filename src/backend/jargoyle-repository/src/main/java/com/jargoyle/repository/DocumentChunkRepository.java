@@ -23,12 +23,12 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, UU
             where dc.document_id = :documentId
                 and dc.embedding is not null
             order by dc.embedding <=> cast(:queryEmbedding as vector)
-            limit :topK
+            limit :maxChunks
             """, nativeQuery = true)
-    List<DocumentChunk> findTopKSimilar(
+    List<DocumentChunk> findSimilarChunks(
         @Param("documentId") UUID documentId,
         @Param("queryEmbedding") String queryEmbedding,
-        @Param("topK") int topK);
+        @Param("maxChunks") int maxChunks);
 
     long countByDocumentId(UUID documentId);
 

@@ -3,6 +3,7 @@ package com.jargoyle.service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -75,8 +76,8 @@ public class ChatService {
             Rules:
             - Only answer based on the document content provided below. Do not use general \
               knowledge or make assumptions beyond what the document states.
-            - If the answer is not in the document, say so clearly: "I can't find that in \
-              your document."
+            - If the answer is not in the document content below, say so clearly: "I can't \
+              find that in your document."
             - When referencing specific amounts, dates, or terms, quote them exactly from \
               the document.
             - Keep answers concise but thorough. Use bullet points for lists.
@@ -86,7 +87,7 @@ public class ChatService {
             --- DOCUMENT SUMMARY ---
             %s
 
-            --- RELEVANT SECTIONS ---
+            --- DOCUMENT CONTENT (%s) ---
             %s
 
             --- CONVERSATION HISTORY ---
@@ -166,9 +167,18 @@ public class ChatService {
             // in history even if the LLM call fails.
             saveUserMessage(conversation, userQuestion);
 
-            // Steps 4-5: embed the question and retrieve similar chunks.
+            // Steps 4-5: embed the question and retrieve similar chunks
+            // within the token budget.
             var chunks = retrieveRelevantChunks(document.getId(), userQuestion);
             var sourceChunkReferences = buildSourceChunkReferences(chunks);
+
+            // Build a coverage description so the LLM knows whether it has
+            // the full document or a subset.
+            var totalChunkCount = (int) documentChunkRepository.countByDocumentId(document.getId());
+            var coverageDescription = buildCoverageDescription(chunks, totalChunkCount);
+            log.debug("Selected {} of {} chunks within budget of {} tokens",
+                    chunks.size(), totalChunkCount,
+                    retrievalProperties.maxContextTokens());
 
             // Step 6: load and trim conversation history.
             var history = loadTrimmedHistory(conversationId);
@@ -177,7 +187,8 @@ public class ChatService {
             var summary = documentSummaryRepository.findByDocumentId(document.getId())
                     .map(ds -> ds.getPlainSummary())
                     .orElse("No summary available.");
-            var systemPrompt = buildSystemPrompt(document, summary, chunks, history);
+            var systemPrompt = buildSystemPrompt(document, summary, chunks, history,
+                    coverageDescription);
 
             // Steps 8-11: stream the LLM response, accumulate, and persist.
             var responseBuilder = new StringBuilder();
@@ -245,14 +256,79 @@ public class ChatService {
     }
 
     /**
-     * Embeds the user's question and retrieves the top-K most similar document
-     * chunks via cosine similarity search.
+     * Embeds the user's question and retrieves document chunks ordered by
+     * cosine similarity, including as many as fit within the configured
+     * token budget.
+     *
+     * <p>For small documents where all chunks fit within the budget, every
+     * chunk is returned — giving the LLM full document context. For large
+     * documents, the most relevant chunks are prioritised.
      */
     private List<DocumentChunk> retrieveRelevantChunks(UUID documentId, String userQuestion) {
         var queryEmbedding = embeddingService.embed(userQuestion);
         var vectorLiteral = embeddingService.toVectorLiteral(queryEmbedding);
-        return documentChunkRepository.findTopKSimilar(
-                documentId, vectorLiteral, retrievalProperties.topK());
+        var similarChunks = documentChunkRepository.findSimilarChunks(
+                documentId, vectorLiteral, retrievalProperties.maxChunks());
+        return selectChunksWithinBudget(similarChunks, retrievalProperties.maxContextTokens());
+    }
+
+    /**
+     * Selects as many chunks as fit within the given token budget, preserving
+     * the similarity ordering from the database query.
+     *
+     * <p>For small documents where the total token count of all chunks is
+     * within the budget, every chunk is included — giving the LLM full
+     * document context. For large documents, the most relevant chunks (by
+     * cosine similarity) are prioritised until the budget is filled.
+     *
+     * <p>At least one chunk is always included, even if it alone exceeds the
+     * budget. This mirrors the minimum-retention guarantee in
+     * {@link #trimHistory}.
+     *
+     * @param similarityOrderedChunks chunks ordered by cosine similarity
+     *                                (most similar first)
+     * @param tokenBudget             maximum total tokens of chunk content
+     *                                to include
+     * @return the selected chunks, still in similarity order
+     */
+    List<DocumentChunk> selectChunksWithinBudget(
+            List<DocumentChunk> similarityOrderedChunks, int tokenBudget) {
+
+        var selected = new ArrayList<DocumentChunk>();
+        int totalTokens = 0;
+
+        for (var chunk : similarityOrderedChunks) {
+            int chunkTokens = chunk.getTokenCount();
+            if (totalTokens + chunkTokens > tokenBudget && !selected.isEmpty()) {
+                break;
+            }
+            // Always include at least one chunk, even if it exceeds the budget.
+            selected.add(chunk);
+            totalTokens += chunkTokens;
+        }
+
+        return selected;
+    }
+
+    /**
+     * Builds a human-readable description of how much document content is
+     * included in the prompt. Returns "full document" when all chunks are
+     * present, or "most relevant N of M sections" otherwise.
+     *
+     * <p>This descriptor is inserted into the system prompt header so the
+     * LLM knows whether it has complete or partial document coverage.
+     *
+     * @param selectedChunks  the chunks that were selected for the prompt
+     * @param totalChunkCount the total number of chunks for the document
+     * @return a concise coverage description
+     */
+    private String buildCoverageDescription(List<DocumentChunk> selectedChunks,
+                                            int totalChunkCount) {
+        if (selectedChunks.size() >= totalChunkCount) {
+            return "full document";
+        }
+        return String.format("most relevant %d of %d sections",
+                selectedChunks.size(), totalChunkCount);
     }
 
     /**
@@ -318,20 +394,31 @@ public class ChatService {
 
     /**
      * Assembles the full system prompt from the template, substituting the
-     * document type, summary, retrieved chunks, and conversation history.
+     * document type, summary, document content, coverage description, and
+     * conversation history.
+     *
+     * <p>Chunks are sorted by {@code chunkIndex} before being written into the
+     * prompt so the LLM reads the document in its original order, regardless
+     * of the similarity-based order used during budget selection.
      */
     private String buildSystemPrompt(
             Document document,
             String summary,
             List<DocumentChunk> chunks,
-            List<Message> history) {
+            List<Message> history,
+            String coverageDescription) {
 
         var documentTypeName = document.getDocumentType() != null
                 ? document.getDocumentType().name().toLowerCase().replace('_', ' ')
                 : "document";
 
+        // Sort chunks by document order for natural reading flow.
+        var orderedChunks = chunks.stream()
+                .sorted(Comparator.comparingInt(DocumentChunk::getChunkIndex))
+                .toList();
+
         var chunksText = new StringBuilder();
-        for (var chunk : chunks) {
+        for (var chunk : orderedChunks) {
             chunksText.append("[Section ").append(chunk.getChunkIndex() + 1).append("]\n");
             chunksText.append(chunk.getContent()).append("\n\n");
         }
@@ -345,6 +432,7 @@ public class ChatService {
         return String.format(SYSTEM_PROMPT_TEMPLATE,
                 documentTypeName,
                 summary,
+                coverageDescription,
                 chunksText.toString(),
                 historyText.toString());
     }

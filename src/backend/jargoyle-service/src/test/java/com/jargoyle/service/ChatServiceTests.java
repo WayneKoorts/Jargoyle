@@ -82,7 +82,7 @@ public class ChatServiceTests {
         mockDocumentChunkRepository = mock(DocumentChunkRepository.class);
         mockDocumentSummaryRepository = mock(DocumentSummaryRepository.class);
         mockEmbeddingService = mock(EmbeddingService.class);
-        retrievalProperties = new RetrievalProperties(5);
+        retrievalProperties = new RetrievalProperties(100_000, 200);
         chatProperties = new ChatProperties(10, 2000, 4000);
 
         sut = new ChatService(
@@ -170,9 +170,11 @@ public class ChatServiceTests {
 
         // Chunk retrieval mock.
         var chunk = createTestChunk(0, "The total amount due is £150.00.");
-        when(mockDocumentChunkRepository.findTopKSimilar(
+        when(mockDocumentChunkRepository.findSimilarChunks(
                 eq(documentId), anyString(), anyInt()))
                 .thenReturn(List.of(chunk));
+        when(mockDocumentChunkRepository.countByDocumentId(documentId))
+                .thenReturn(1L);
 
         // Summary mock.
         var summary = mock(DocumentSummary.class);
@@ -280,8 +282,8 @@ public class ChatServiceTests {
 
             verify(mockEmbeddingService).embed(userQuestion);
             verify(mockEmbeddingService).toVectorLiteral(any(float[].class));
-            verify(mockDocumentChunkRepository).findTopKSimilar(
-                    eq(documentId), eq("[0.1, 0.2, 0.3]"), eq(5));
+            verify(mockDocumentChunkRepository).findSimilarChunks(
+                    eq(documentId), eq("[0.1, 0.2, 0.3]"), eq(200));
         }
 
         @Test
@@ -304,6 +306,7 @@ public class ChatServiceTests {
             assertThat(systemMessage).contains("The total amount due is £150.00.");
             assertThat(systemMessage).contains("[Section 1]");
             assertThat(systemMessage).contains("bill");
+            assertThat(systemMessage).contains("DOCUMENT CONTENT (full document)");
         }
 
         @Test
@@ -314,8 +317,10 @@ public class ChatServiceTests {
 
             when(mockEmbeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
             when(mockEmbeddingService.toVectorLiteral(any())).thenReturn("[0.1]");
-            when(mockDocumentChunkRepository.findTopKSimilar(any(), anyString(), anyInt()))
+            when(mockDocumentChunkRepository.findSimilarChunks(any(), anyString(), anyInt()))
                     .thenReturn(List.of());
+            when(mockDocumentChunkRepository.countByDocumentId(any()))
+                    .thenReturn(0L);
             when(mockDocumentSummaryRepository.findByDocumentId(any()))
                     .thenReturn(Optional.empty());
 
@@ -394,8 +399,10 @@ public class ChatServiceTests {
                     .thenReturn(Optional.of(conversation));
             when(mockEmbeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
             when(mockEmbeddingService.toVectorLiteral(any())).thenReturn("[0.1]");
-            when(mockDocumentChunkRepository.findTopKSimilar(any(), anyString(), anyInt()))
+            when(mockDocumentChunkRepository.findSimilarChunks(any(), anyString(), anyInt()))
                     .thenReturn(List.of());
+            when(mockDocumentChunkRepository.countByDocumentId(any()))
+                    .thenReturn(0L);
             when(mockDocumentSummaryRepository.findByDocumentId(any()))
                     .thenReturn(Optional.empty());
             when(mockMessageRepository.findRecentByConversationId(any(), anyInt()))
@@ -426,8 +433,10 @@ public class ChatServiceTests {
                     .thenReturn(Optional.of(conversation));
             when(mockEmbeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
             when(mockEmbeddingService.toVectorLiteral(any())).thenReturn("[0.1]");
-            when(mockDocumentChunkRepository.findTopKSimilar(any(), anyString(), anyInt()))
+            when(mockDocumentChunkRepository.findSimilarChunks(any(), anyString(), anyInt()))
                     .thenReturn(List.of());
+            when(mockDocumentChunkRepository.countByDocumentId(any()))
+                    .thenReturn(0L);
             when(mockDocumentSummaryRepository.findByDocumentId(any()))
                     .thenReturn(Optional.empty());
             when(mockMessageRepository.findRecentByConversationId(any(), anyInt()))
@@ -526,6 +535,56 @@ public class ChatServiceTests {
         }
     }
 
+    // ── Chunk budget tests ─────────────────────────────────────────────
+
+    @Nested
+    class ChunkBudgeting {
+
+        @Test
+        void selectChunksWithinBudget_allChunksFit_returnsAll() {
+            var chunks = List.of(
+                    createTestChunk(0, "A".repeat(400)),
+                    createTestChunk(1, "B".repeat(400)),
+                    createTestChunk(2, "C".repeat(400)));
+
+            var result = sut.selectChunksWithinBudget(chunks, 1000);
+
+            assertThat(result).hasSize(3);
+        }
+
+        @Test
+        void selectChunksWithinBudget_budgetExceeded_trimsLeastRelevant() {
+            // Each chunk is ~100 tokens (400 chars / 4). Budget of 200 fits 2.
+            var chunks = List.of(
+                    createTestChunk(0, "A".repeat(400)),
+                    createTestChunk(1, "B".repeat(400)),
+                    createTestChunk(2, "C".repeat(400)));
+
+            var result = sut.selectChunksWithinBudget(chunks, 200);
+
+            assertThat(result).hasSize(2);
+            assertThat(result.get(0).getChunkIndex()).isEqualTo(0);
+            assertThat(result.get(1).getChunkIndex()).isEqualTo(1);
+        }
+
+        @Test
+        void selectChunksWithinBudget_alwaysIncludesAtLeastOneChunk() {
+            var chunks = List.of(
+                    createTestChunk(0, "A".repeat(2000)));
+
+            var result = sut.selectChunksWithinBudget(chunks, 10);
+
+            assertThat(result).hasSize(1);
+        }
+
+        @Test
+        void selectChunksWithinBudget_emptyList_returnsEmpty() {
+            var result = sut.selectChunksWithinBudget(List.of(), 1000);
+
+            assertThat(result).isEmpty();
+        }
+    }
+
     // ── Source attribution tests ──────────────────────────────────────
 
     @Nested
@@ -542,8 +601,10 @@ public class ChatServiceTests {
 
             var chunk1 = createTestChunk(0, "First chunk content here.");
             var chunk2 = createTestChunk(1, "Second chunk content here.");
-            when(mockDocumentChunkRepository.findTopKSimilar(any(), anyString(), anyInt()))
+            when(mockDocumentChunkRepository.findSimilarChunks(any(), anyString(), anyInt()))
                     .thenReturn(List.of(chunk1, chunk2));
+            when(mockDocumentChunkRepository.countByDocumentId(any()))
+                    .thenReturn(2L);
 
             when(mockDocumentSummaryRepository.findByDocumentId(any()))
                     .thenReturn(Optional.empty());

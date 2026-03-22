@@ -67,6 +67,7 @@ npm run test:watch   # Run tests in watch mode
 - **Service split pattern**: Separate CRUD services from orchestration services (e.g. `ConversationService` for CRUD, `ChatService` for RAG pipeline). Keeps each service focused and testable.
 - **SSE streaming**: Chat endpoints return `Flux<ChatStreamEvent>` with `produces = TEXT_EVENT_STREAM_VALUE`. Event types: `TOKEN`, `COMPLETE`, `ERROR`.
 - **Ownership verification**: Repository methods like `findByIdAndUserId` use JPQL joins to combine lookup and authorisation in a single query, throwing the appropriate `NotFoundException` if the join returns empty.
+- **Token-budgeted retrieval**: The RAG pipeline includes as many document chunks as fit within a configurable token budget (`maxContextTokens`), ordered by cosine similarity. For small documents, the LLM receives the full document content. A `maxChunks` safety cap limits the maximum number of database rows fetched.
 
 Auto-configuration for DataSource and Hibernate is excluded in the default `application.yml` profile so the application can start without a database. The `dev` and `prod` profiles override this with `exclude: []`, enabling full database support. When running locally, use the `dev` profile.
 

@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -33,6 +34,23 @@ public class ChunkingService {
         Pattern.CASE_INSENSITIVE);
     private static final Pattern SEPARATOR_LINE_PATTERN = Pattern.compile("^[-=_*]{3,}$");
     private static final Pattern SENTENCE_BOUNDARY_PATTERN = Pattern.compile("(?<=[.!?])\\s+(?=[A-Z0-9])|\\n{2,}");
+
+    /**
+     * Matches characters that are typically PDF extraction artefacts rather than
+     * meaningful content. These render as squares or invisible glyphs in UIs:
+     * <ul>
+     *   <li>C0 control characters (U+0000–U+001F) except tab, newline, carriage return</li>
+     *   <li>C1 control characters (U+0080–U+009F)</li>
+     *   <li>Private Use Area (U+E000–U+F8FF) — PDF fonts often map custom glyphs here</li>
+     *   <li>Supplementary Private Use Areas (U+F0000–U+FFFFD, U+100000–U+10FFFD)</li>
+     *   <li>Replacement character (U+FFFD) — emitted when a decoder can't map a byte</li>
+     *   <li>Soft hyphens (U+00AD) — invisible layout hints that serve no purpose in plain text</li>
+     * </ul>
+     */
+    private static final Pattern NON_RENDERABLE_PATTERN = Pattern.compile(
+        "[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x80-\\x9F\\uE000-\\uF8FF\\uFFFD\\u00AD]"
+        + "|[\\uDB80-\\uDBFF][\\uDC00-\\uDFFD]"  // supplementary PUA (surrogate pairs)
+    );
 
     private final ChunkingProperties properties;
 
@@ -372,14 +390,23 @@ public class ChunkingService {
     }
 
     /**
-     * Normalises line endings and trims leading and trailing whitespace.
+     * Normalises extracted text ready for chunking.
+     *
+     * <p>Applies Unicode NFC normalisation to merge combining-mark sequences
+     * (e.g. a base letter followed by a combining accent) into single composed
+     * codepoints, then strips non-renderable characters that are common PDF
+     * extraction artefacts, and finally normalises line endings.
      */
     private String normaliseText(String text) {
         if (text == null) {
             return "";
         }
 
-        return text
+        // NFC normalisation merges combining marks (e.g. e + ´ → é) into
+        // composed codepoints so the text is consistent for downstream use.
+        var normalised = Normalizer.normalize(text, Normalizer.Form.NFC);
+
+        return NON_RENDERABLE_PATTERN.matcher(normalised).replaceAll("")
             .replace("\r\n", "\n")
             .replace('\r', '\n')
             .trim();

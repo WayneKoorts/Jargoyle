@@ -84,6 +84,46 @@ class ChunkingServiceTests {
         assertThat(chunks).allMatch(chunk -> chunk.tokenCount() > 0);
     }
 
+    @Test
+    void chunkText_stripsPrivateUseAreaCharacters() {
+        // U+E000 is a Private Use Area codepoint — common PDF extraction artefact
+        var text = "Provider List.\uE000 A list of accredited providers whose continuing " +
+                   "legal education courses have been approved.";
+
+        var chunks = sut.chunkText(text);
+
+        assertThat(chunks).hasSize(1);
+        assertThat(chunks.getFirst().content()).doesNotContain("\uE000");
+        assertThat(chunks.getFirst().content()).contains("Provider List. A list");
+    }
+
+    @Test
+    void chunkText_stripsControlCharactersButPreservesNewlines() {
+        // Null byte and form-feed should be stripped; newlines should survive
+        var text = "First line.\u0000\n\nSecond line with form-feed\u000C here.";
+
+        var chunks = sut.chunkText(text);
+
+        assertThat(chunks).hasSize(1);
+        var content = chunks.getFirst().content();
+        assertThat(content).doesNotContain("\u0000");
+        assertThat(content).doesNotContain("\u000C");
+        assertThat(content).contains("First line.\n\nSecond line");
+    }
+
+    @Test
+    void chunkText_stripsReplacementCharacterAndSoftHyphen() {
+        var text = "Cer\u00ADtifi\u00ADcate of com\uFFFDpletion is required.";
+
+        var chunks = sut.chunkText(text);
+
+        assertThat(chunks).hasSize(1);
+        var content = chunks.getFirst().content();
+        assertThat(content).doesNotContain("\u00AD");
+        assertThat(content).doesNotContain("\uFFFD");
+        assertThat(content).isEqualTo("Certificate of completion is required.");
+    }
+
     private String extractTail(String text, int length) {
         var start = Math.max(0, text.length() - length);
         return text.substring(start).trim();

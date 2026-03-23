@@ -246,7 +246,7 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, UU
 ```java
 public interface ConversationRepository extends JpaRepository<Conversation, UUID> {
 
-    List<Conversation> findByDocumentIdOrderByLastMessageAtDesc(UUID documentId);
+    List<Conversation> findByDocumentIdOrderByCreatedAtDescIdDesc(UUID documentId);
 
     @Query("""
         select c from Conversation c
@@ -264,7 +264,7 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
 
 **Why `findByIdAndUserId` uses a JPQL query rather than method name derivation?** The ownership check traverses two relationships: `conversation → document → user`. Spring Data's method name derivation would be `findByIdAndDocumentUserId` which works but is fragile (it depends on Hibernate correctly resolving the property path through two associations). An explicit JPQL query makes the join path clear and testable.
 
-**Why return `List` not `Page` for `findByDocumentIdOrderByLastMessageAtDesc`?** A single document is unlikely to have more than a handful of conversations. Pagination adds complexity without value here. If this assumption proves wrong, switching to `Page` is a single method signature change.
+**Why return `List` not `Page` for `findByDocumentIdOrderByCreatedAtDescIdDesc`?** A single document is unlikely to have more than a handful of conversations. Pagination adds complexity without value here. If this assumption proves wrong, switching to `Page` is a single method signature change.
 
 #### `MessageRepository`
 
@@ -1245,7 +1245,7 @@ This route was defined in the Phase 1 design but may not have been implemented y
 | Test class | What it covers |
 |------------|----------------|
 | `DocumentChunkRepositoryTests` | `findTopKSimilar` returns chunks ordered by cosine similarity; only returns chunks for the specified document (not other documents); respects the `topK` limit; excludes chunks with null embeddings; `findByDocumentIdOrderByChunkIndex` returns correct ordering |
-| `ConversationRepositoryTests` | `findByIdAndUserId` returns empty for wrong user; `findByDocumentIdOrderByLastMessageAtDesc` returns correct ordering; cascade delete removes conversations when document is deleted |
+| `ConversationRepositoryTests` | `findByIdAndUserId` returns empty for wrong user; `findByDocumentIdOrderByCreatedAtDescIdDesc` returns correct ordering; cascade delete removes conversations when document is deleted |
 | `MessageRepositoryTests` | `findRecentByConversationId` returns correct number of messages in descending order; `findByConversationIdOrderByCreatedAtDesc` pagination works correctly; cascade delete removes messages when conversation is deleted |
 
 Use `@DataJpaTest` with Testcontainers (pgvector image). For `DocumentChunkRepositoryTests`, pre-seed chunks with known embedding values (simple synthetic vectors) to verify cosine similarity ordering.

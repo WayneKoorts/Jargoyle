@@ -100,15 +100,19 @@ public class ConversationService {
     }
 
     /**
-     * Lists all conversations for a document, sorted by most recent
-     * activity first.
+     * Lists all conversations for a document, sorted newest-to-oldest
+     * by creation time.
+     *
+     * <p>A secondary sort on {@code id} ensures stable ordering when
+     * two conversations share the same {@code createdAt} timestamp.
      *
      * <p>Message counts are fetched in a single batch query to avoid N+1
      * performance problems.
      *
      * @param userId     the authenticated user's ID
      * @param documentId the document whose conversations to list
-     * @return conversations sorted by {@code lastMessageAt} descending
+     * @return conversations sorted by {@code createdAt} descending,
+     *         then by {@code id} descending
      * @throws DocumentNotFoundException if the document does not exist or
      *                                   is not owned by the user
      */
@@ -119,7 +123,7 @@ public class ConversationService {
                 .orElseThrow(() -> new DocumentNotFoundException(documentId));
 
         var conversations = conversationRepository
-                .findByDocumentIdOrderByLastMessageAtDesc(documentId);
+                .findByDocumentIdOrderByCreatedAtDescIdDesc(documentId);
 
         if (conversations.isEmpty()) {
             return List.of();

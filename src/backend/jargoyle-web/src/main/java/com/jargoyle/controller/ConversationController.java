@@ -79,8 +79,8 @@ public class ConversationController {
     }
 
     /**
-     * Lists all conversations for a document, sorted by most recent
-     * activity first.
+     * Lists all conversations for a document, sorted newest-to-oldest
+     * by creation time.
      *
      * @param user       the authenticated user
      * @param documentId the document whose conversations to list

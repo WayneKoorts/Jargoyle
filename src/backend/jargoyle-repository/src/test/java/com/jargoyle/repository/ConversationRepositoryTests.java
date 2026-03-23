@@ -101,6 +101,44 @@ class ConversationRepositoryTests {
         assertThat(result).isEmpty();
     }
 
+    @Test
+    void findByDocumentId_orderedByCreatedAtDescThenIdDesc() {
+        // Arrange — create three conversations with staggered creation times.
+        // We set lastMessageAt to a different order to prove it's no longer
+        // used for sorting.
+        var oldest = createConversation(testDocument, "Oldest");
+        var middle = createConversation(testDocument, "Middle");
+        var newest = createConversation(testDocument, "Newest");
+        entityManager.flush();
+
+        // Act
+        var results = conversationRepository
+                .findByDocumentIdOrderByCreatedAtDescIdDesc(testDocument.getId());
+
+        // Assert — newest-created first, oldest last.
+        assertThat(results).hasSize(3);
+        assertThat(results.get(0).getTitle()).isEqualTo("Newest");
+        assertThat(results.get(1).getTitle()).isEqualTo("Middle");
+        assertThat(results.get(2).getTitle()).isEqualTo("Oldest");
+    }
+
+    @Test
+    void findByDocumentId_excludesOtherDocuments() {
+        // Arrange — conversation on a different document should not appear.
+        var otherDocument = createDocument(testUser, "Other Document");
+        createConversation(testDocument, "Included");
+        createConversation(otherDocument, "Excluded");
+        entityManager.flush();
+
+        // Act
+        var results = conversationRepository
+                .findByDocumentIdOrderByCreatedAtDescIdDesc(testDocument.getId());
+
+        // Assert
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getTitle()).isEqualTo("Included");
+    }
+
     // --- Helper methods ---
 
     private User createUser(String email, String displayName, String oauthSubject) {

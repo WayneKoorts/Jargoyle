@@ -12,7 +12,7 @@ import com.jargoyle.entity.Conversation;
 
 public interface ConversationRepository extends JpaRepository<Conversation, UUID> {
 
-    List<Conversation> findByDocumentIdOrderByLastMessageAtDesc(UUID documentId);
+    List<Conversation> findByDocumentIdOrderByCreatedAtDescIdDesc(UUID documentId);
 
     @Query("""
             select c from Conversation c

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import type { SourceChunkReference } from '../../api/conversations'
 
@@ -42,7 +43,7 @@ export default function SourceChunkDisplay({ sourceChunks }: SourceChunkDisplayP
           onClick={() => setExpanded(true)}
           className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700"
         >
-          <ChevronIcon direction="right" />
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
           Referenced {sourceChunks.length} sections
         </button>
       )}
@@ -56,7 +57,7 @@ export default function SourceChunkDisplay({ sourceChunks }: SourceChunkDisplayP
               onClick={() => setExpanded(false)}
               className="mb-1.5 flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700"
             >
-              <ChevronIcon direction="down" />
+              <ChevronRight className="h-3.5 w-3.5 rotate-90" aria-hidden="true" />
               Referenced {sourceChunks.length} sections
             </button>
           )}
@@ -128,32 +129,3 @@ function ChunkPill({ chunk }: { chunk: SourceChunkReference }) {
   )
 }
 
-/**
- * Inline chevron icon used for the expand/collapse toggle.
- * Points right when collapsed, down when expanded.
- */
-function ChevronIcon({ direction }: { direction: 'right' | 'down' }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className="h-3.5 w-3.5"
-      aria-hidden="true"
-    >
-      {direction === 'right' ? (
-        <path
-          fillRule="evenodd"
-          d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z"
-          clipRule="evenodd"
-        />
-      ) : (
-        <path
-          fillRule="evenodd"
-          d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
-          clipRule="evenodd"
-        />
-      )}
-    </svg>
-  )
-}

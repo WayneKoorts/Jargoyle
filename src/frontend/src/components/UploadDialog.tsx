@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Check, CloudUpload, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useUploadDocument } from '../hooks/useUploadDocument'
 import { useDocumentStatus } from '../hooks/useDocumentStatus'
@@ -193,9 +194,7 @@ export default function UploadDialog({ open, onClose }: UploadDialogProps) {
               className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
               aria-label="Close"
             >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -238,9 +237,7 @@ export default function UploadDialog({ open, onClose }: UploadDialogProps) {
                   </div>
                 ) : (
                   <>
-                    <svg className="mb-3 h-10 w-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
-                    </svg>
+                    <CloudUpload className="mb-3 h-10 w-10 text-slate-400" strokeWidth={1.5} aria-hidden="true" />
                     <p className="text-sm text-slate-600">
                       Drag and drop a PDF here, or{' '}
                       <label className="cursor-pointer font-medium text-indigo-600 hover:text-indigo-800">
@@ -299,9 +296,7 @@ export default function UploadDialog({ open, onClose }: UploadDialogProps) {
             {status.isFailed ? (
               <>
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-                  <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="h-6 w-6 text-red-600" aria-hidden="true" />
                 </div>
                 <p className="text-sm font-medium text-slate-900">Processing failed</p>
                 <p className="mt-1 text-sm text-slate-500">{status.errorMessage ?? 'An unexpected error occurred.'}</p>
@@ -336,9 +331,7 @@ export default function UploadDialog({ open, onClose }: UploadDialogProps) {
         {effectivePhase === 'complete' && (
           <div className="flex flex-col items-center py-6">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-              </svg>
+              <Check className="h-6 w-6 text-green-600" aria-hidden="true" />
             </div>
             <p className="text-sm font-medium text-slate-900">Document processed successfully</p>
             <p className="mt-1 text-sm text-slate-500">Your document is ready to view.</p>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ArrowUp } from 'lucide-react'
 import type { SuggestedQuestion, Message } from '../../api/conversations'
 import { useMessages } from '../../hooks/useMessages'
 import { useChatStream } from '../../hooks/useChatStream'
@@ -167,9 +168,7 @@ export default function ChatInterface({ conversationId, suggestedQuestions }: Ch
             aria-label="Send"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
-            </svg>
+            <ArrowUp className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
           </button>
         </div>
       </div>

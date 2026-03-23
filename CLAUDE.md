@@ -81,6 +81,7 @@ Users have a `role` field (`Role` enum: `USER`, `ADMIN`) stored as a string in t
 - **Hook patterns**: React Query (`@tanstack/react-query`) drives all CRUD data fetching and mutations (e.g. `useConversations`, `useMessages`, `useCreateConversation`). Streaming operations that don't fit the request/response model use custom `useState`-based hooks (e.g. `useChatStream`).
 - **API layer**: TypeScript interfaces in `src/api/` mirror backend DTOs. SSE streaming uses an `AsyncGenerator` via raw `fetch` + `ReadableStream` (not `EventSource`, which only supports GET).
 - **Layout modes**: The `Layout` component supports a `fullHeight` mode for viewport-filling pages (e.g. the chat view) vs the default scrollable content area.
+- **Icons**: Use the Lucide React library (`lucide-react`) for all icons. Import individual icons (e.g. `import { User } from 'lucide-react'`) — the library is tree-shakeable so only imported icons are bundled.
 
 ## Frontend Testing
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { UserProfile } from '../api/auth'
-import { displayUserName } from '../utils/display'
+import AccountDropdown from './AccountDropdown'
 import UploadDialog from './UploadDialog'
 
 interface LayoutProps {
@@ -74,13 +74,7 @@ export default function Layout({ user, onLogout, children, variant = 'default', 
               Admin
             </Link>
           )}
-          <span className="text-sm text-slate-600">{displayUserName(user)}</span>
-          <button
-            onClick={onLogout}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-          >
-            Sign out
-          </button>
+          <AccountDropdown user={user} onLogout={onLogout} />
         </div>
       </header>
 

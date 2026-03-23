@@ -80,7 +80,7 @@ describe('Layout', () => {
     expect(screen.queryByRole('link', { name: 'Admin' })).not.toBeInTheDocument()
   })
 
-  it('clicking Sign out calls onLogout', async () => {
+  it('clicking Sign out in account dropdown calls onLogout', async () => {
     const onLogout = vi.fn()
     renderWithProviders(
       <Layout user={regularUser} onLogout={onLogout}>
@@ -88,7 +88,9 @@ describe('Layout', () => {
       </Layout>,
     )
 
-    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    // Open the account dropdown, then click Sign out
+    await userEvent.click(screen.getByRole('button', { name: 'Account menu' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: /sign out/i }))
     expect(onLogout).toHaveBeenCalledOnce()
   })
 })

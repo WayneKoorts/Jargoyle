@@ -1,6 +1,8 @@
 package com.jargoyle.config;
 
-import java.util.Optional;
+import java.util.HashMap;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -8,7 +10,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
@@ -23,17 +28,17 @@ public class SecurityConfig {
 
     private final CustomOidcUserService _customOidcUserService;
     private final EnabledUserFilter _enabledUserFilter;
-    private final Optional<OAuth2AuthorizationRequestResolver> _authorizationRequestResolver;
+    private final ClientRegistrationRepository _clientRegistrationRepository;
     private final String _oauthSuccessUrl;
 
     public SecurityConfig(
             CustomOidcUserService customOidcUserService,
             EnabledUserFilter enabledUserFilter,
-            Optional<OAuth2AuthorizationRequestResolver> authorizationRequestResolver,
+            ClientRegistrationRepository clientRegistrationRepository,
             @Value("${spring.oauth-success-url:/}") String oauthSuccessUrl) {
         _customOidcUserService = customOidcUserService;
         _enabledUserFilter = enabledUserFilter;
-        _authorizationRequestResolver = authorizationRequestResolver;
+        _clientRegistrationRepository = clientRegistrationRepository;
         _oauthSuccessUrl = oauthSuccessUrl;
     }
 
@@ -62,7 +67,7 @@ public class SecurityConfig {
             )
             .oauth2Login(oauth -> oauth
                 .authorizationEndpoint(auth ->
-                    _authorizationRequestResolver.ifPresent(auth::authorizationRequestResolver)
+                    auth.authorizationRequestResolver(createAuthorizationRequestResolver())
                 )
                 .userInfoEndpoint(userInfo -> userInfo
                     .oidcUserService(_customOidcUserService)
@@ -87,5 +92,53 @@ public class SecurityConfig {
             .logout(logout -> logout.logoutSuccessUrl("/"))
             .addFilterAfter(_enabledUserFilter, AnonymousAuthenticationFilter.class)
             .build();
-    }    
+    }
+
+    /**
+     * Creates a resolver that conditionally adds {@code prompt=select_account}
+     * to Google's OAuth2 authorisation request. The prompt parameter is only
+     * added when the incoming request includes {@code ?prompt=select_account}
+     * as a query parameter — this lets the frontend offer a "Switch account"
+     * option that forces the Google account chooser, while the normal "Sign in
+     * with Google" flow auto-selects the existing session.
+     *
+     * <p>Replaces the former {@code DevSecurityConfig} approach, which
+     * unconditionally forced the account chooser in the dev profile only.
+     */
+    private OAuth2AuthorizationRequestResolver createAuthorizationRequestResolver() {
+        var defaultResolver = new DefaultOAuth2AuthorizationRequestResolver(
+            _clientRegistrationRepository, "/oauth2/authorization");
+
+        // The DefaultOAuth2AuthorizationRequestResolver's setAuthorizationRequestCustomizer
+        // doesn't expose the original HttpServletRequest, so we wrap the resolver interface
+        // directly to inspect the request's query parameters before decorating the result.
+        return new OAuth2AuthorizationRequestResolver() {
+            @Override
+            public OAuth2AuthorizationRequest resolve(HttpServletRequest request) {
+                return addPromptIfRequested(request, defaultResolver.resolve(request));
+            }
+
+            @Override
+            public OAuth2AuthorizationRequest resolve(HttpServletRequest request, String clientRegistrationId) {
+                return addPromptIfRequested(request, defaultResolver.resolve(request, clientRegistrationId));
+            }
+
+            private OAuth2AuthorizationRequest addPromptIfRequested(
+                    HttpServletRequest request, OAuth2AuthorizationRequest authorizationRequest) {
+                if (authorizationRequest == null) {
+                    return null;
+                }
+                if (!"select_account".equals(request.getParameter("prompt"))) {
+                    return authorizationRequest;
+                }
+                // Copy existing additional parameters and add the Google-specific
+                // prompt parameter that forces the account chooser to appear.
+                var additionalParams = new HashMap<>(authorizationRequest.getAdditionalParameters());
+                additionalParams.put("prompt", "select_account");
+                return OAuth2AuthorizationRequest.from(authorizationRequest)
+                    .additionalParameters(additionalParams)
+                    .build();
+            }
+        };
+    }
 }

@@ -269,7 +269,7 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
                   </p>
 
                   {flaggedTerms.length > 0 ? (
-                    <div className="mt-4 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {flaggedTerms.map((item, i) => (
                         <div
                           key={i}

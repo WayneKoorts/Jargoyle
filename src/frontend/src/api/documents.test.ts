@@ -60,6 +60,61 @@ describe('parseKeyFacts', () => {
     expect(result.dates).toEqual([])
     expect(result.parties).toEqual([])
   })
+
+  it('sorts amounts alphabetically by label', () => {
+    const json = JSON.stringify({
+      amounts: [
+        { label: 'Total', value: '£100', context: '' },
+        { label: 'Deposit', value: '£20', context: '' },
+        { label: 'balance due', value: '£80', context: '' },
+      ],
+      dates: [],
+      parties: [],
+    })
+    const result = parseKeyFacts(json)
+    expect(result.amounts.map((f) => f.label)).toEqual(['balance due', 'Deposit', 'Total'])
+  })
+
+  it('sorts dates alphabetically by label', () => {
+    const json = JSON.stringify({
+      amounts: [],
+      dates: [
+        { label: 'Payment date', value: '2026-05-01', context: '' },
+        { label: 'Effective date', value: '2026-01-01', context: '' },
+        { label: 'Due', value: '2026-04-01', context: '' },
+      ],
+      parties: [],
+    })
+    const result = parseKeyFacts(json)
+    expect(result.dates.map((f) => f.label)).toEqual(['Due', 'Effective date', 'Payment date'])
+  })
+
+  it('sorts parties alphabetically by label', () => {
+    const json = JSON.stringify({
+      amounts: [],
+      dates: [],
+      parties: [
+        { label: 'Vendor', value: 'Acme Ltd', context: '' },
+        { label: 'Buyer', value: 'Bob Ltd', context: '' },
+        { label: 'agent', value: 'Carol Ltd', context: '' },
+      ],
+    })
+    const result = parseKeyFacts(json)
+    expect(result.parties.map((f) => f.label)).toEqual(['agent', 'Buyer', 'Vendor'])
+  })
+
+  it('sorts case-insensitively (e.g. "Amount" before "amount due")', () => {
+    const json = JSON.stringify({
+      amounts: [
+        { label: 'amount due', value: '£50', context: '' },
+        { label: 'Amount', value: '£100', context: '' },
+      ],
+      dates: [],
+      parties: [],
+    })
+    const result = parseKeyFacts(json)
+    expect(result.amounts.map((f) => f.label)).toEqual(['Amount', 'amount due'])
+  })
 })
 
 describe('parseFlaggedTerms', () => {

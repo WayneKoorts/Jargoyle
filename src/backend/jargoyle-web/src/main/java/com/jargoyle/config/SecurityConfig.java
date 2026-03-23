@@ -89,6 +89,12 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                 .ignoringRequestMatchers("/api/**")
             )
+            // Allow the app to be framed by itself (SAMEORIGIN) so that the
+            // document viewer's <iframe> can render content from the /original/stream
+            // endpoint.  The default DENY would block all iframes, including our own.
+            .headers(headers -> headers
+                .frameOptions(frame -> frame.sameOrigin())
+            )
             .logout(logout -> logout.logoutSuccessUrl("/"))
             .addFilterAfter(_enabledUserFilter, AnonymousAuthenticationFilter.class)
             .build();

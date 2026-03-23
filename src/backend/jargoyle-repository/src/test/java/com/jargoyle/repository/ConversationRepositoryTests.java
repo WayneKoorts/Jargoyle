@@ -101,6 +101,53 @@ class ConversationRepositoryTests {
         assertThat(result).isEmpty();
     }
 
+    @Test
+    void findByDocumentId_orderedByCreatedAtDescThenIdDesc() {
+        // Arrange — create three conversations, then assign deterministic
+        // timestamps via native SQL to avoid flakiness from @CreationTimestamp
+        // assigning identical values during rapid inserts.  We also set
+        // lastMessageAt to the *opposite* order to prove it is no longer
+        // used for sorting.
+        var oldest = createConversation(testDocument, "Oldest");
+        var middle = createConversation(testDocument, "Middle");
+        var newest = createConversation(testDocument, "Newest");
+        entityManager.flush();
+
+        var baseTime = Instant.parse("2025-01-01T00:00:00Z");
+        setConversationTimestamps(oldest, baseTime,                    baseTime.plusSeconds(300));
+        setConversationTimestamps(middle, baseTime.plusSeconds(100),    baseTime.plusSeconds(200));
+        setConversationTimestamps(newest, baseTime.plusSeconds(200),    baseTime.plusSeconds(100));
+        entityManager.flush();
+        entityManager.clear();
+
+        // Act
+        var results = conversationRepository
+                .findByDocumentIdOrderByCreatedAtDescIdDesc(testDocument.getId());
+
+        // Assert — newest-created first, oldest last.
+        assertThat(results).hasSize(3);
+        assertThat(results.get(0).getTitle()).isEqualTo("Newest");
+        assertThat(results.get(1).getTitle()).isEqualTo("Middle");
+        assertThat(results.get(2).getTitle()).isEqualTo("Oldest");
+    }
+
+    @Test
+    void findByDocumentId_excludesOtherDocuments() {
+        // Arrange — conversation on a different document should not appear.
+        var otherDocument = createDocument(testUser, "Other Document");
+        createConversation(testDocument, "Included");
+        createConversation(otherDocument, "Excluded");
+        entityManager.flush();
+
+        // Act
+        var results = conversationRepository
+                .findByDocumentIdOrderByCreatedAtDescIdDesc(testDocument.getId());
+
+        // Assert
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getTitle()).isEqualTo("Included");
+    }
+
     // --- Helper methods ---
 
     private User createUser(String email, String displayName, String oauthSubject) {
@@ -133,6 +180,20 @@ class ConversationRepositoryTests {
         conversation.setLastMessageAt(Instant.now());
         entityManager.persist(conversation);
         return conversation;
+    }
+
+    /**
+     * Sets both {@code created_at} and {@code last_message_at} via native SQL
+     * so the test controls timestamps independently of {@code @CreationTimestamp}.
+     */
+    private void setConversationTimestamps(
+            Conversation conversation, Instant createdAt, Instant lastMessageAt) {
+        entityManager.createNativeQuery(
+                "update conversations set created_at = :createdAt, last_message_at = :lastMessageAt where id = :id")
+            .setParameter("createdAt", createdAt)
+            .setParameter("lastMessageAt", lastMessageAt)
+            .setParameter("id", conversation.getId())
+            .executeUpdate();
     }
 
 }

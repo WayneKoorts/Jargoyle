@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchConversations } from '../api/conversations'
 
 /**
- * Fetches all conversations for a document, ordered by most recent activity.
+ * Fetches all conversations for a document, ordered newest-to-oldest
+ * by creation time.
  *
  * The query key includes the documentId so each document gets its own cached
  * conversation list — navigating between documents won't show stale data.

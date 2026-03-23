@@ -58,7 +58,7 @@ export default function LoginPage() {
         </a>
 
         <p className="text-xs text-slate-400">
-          No account needed — just sign in with your Google account.
+          Sign in with your Google account. New accounts need admin approval before they can use Jargoyle.
         </p>
 
         {import.meta.env.DEV && (

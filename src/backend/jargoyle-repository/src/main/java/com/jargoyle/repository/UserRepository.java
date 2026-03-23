@@ -13,4 +13,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     // Spring Data derives the query from the method name — no @Query needed.
     long countByRole(Role role);
+
+    long countByRoleAndEnabledTrue(Role role);
 }

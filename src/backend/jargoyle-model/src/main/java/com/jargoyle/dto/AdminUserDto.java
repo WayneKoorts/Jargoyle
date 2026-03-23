@@ -14,6 +14,7 @@ public record AdminUserDto(
     String displayName,
     String oauthProvider,
     String role,
+    boolean enabled,
     Instant createdAt,
     Instant lastLoginAt
 ) {}

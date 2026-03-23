@@ -17,6 +17,7 @@ const regularUser: UserProfile = {
   displayName: 'Jane Smith',
   oauthProvider: 'google',
   role: 'USER',
+  enabled: true,
 }
 
 const adminUser: UserProfile = {
@@ -25,6 +26,7 @@ const adminUser: UserProfile = {
   displayName: 'Admin Person',
   oauthProvider: 'google',
   role: 'ADMIN',
+  enabled: true,
 }
 
 describe('Layout', () => {

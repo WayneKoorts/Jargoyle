@@ -20,17 +20,18 @@ function createWrapper() {
 
 describe('useUpdateUser', () => {
   it('sends PUT with role, displayName, and email', async () => {
-    let capturedBody: Record<string, string> | undefined
+    let capturedBody: Record<string, string | boolean> | undefined
 
     server.use(
       http.put('/api/admin/users/:id', async ({ request }) => {
-        capturedBody = await request.json() as Record<string, string>
+        capturedBody = await request.json() as Record<string, string | boolean>
         return HttpResponse.json({
           id: 'user-2',
           email: 'new@example.com',
           displayName: 'New Name',
           oauthProvider: 'google',
           role: 'ADMIN',
+          enabled: true,
           createdAt: '2026-02-20T14:00:00Z',
           lastLoginAt: null,
         })
@@ -42,7 +43,7 @@ describe('useUpdateUser', () => {
 
     result.current.mutate({
       id: 'user-2',
-      data: { role: 'ADMIN', displayName: 'New Name', email: 'new@example.com' },
+      data: { role: 'ADMIN', displayName: 'New Name', email: 'new@example.com', enabled: true },
     })
 
     await waitFor(() => {
@@ -53,6 +54,7 @@ describe('useUpdateUser', () => {
       role: 'ADMIN',
       displayName: 'New Name',
       email: 'new@example.com',
+      enabled: true,
     })
   })
 

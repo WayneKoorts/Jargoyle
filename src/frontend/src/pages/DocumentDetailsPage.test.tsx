@@ -43,6 +43,7 @@ const user: UserProfile = {
   displayName: 'Test User',
   oauthProvider: 'google',
   role: 'USER',
+  enabled: true,
 }
 
 function renderPage() {

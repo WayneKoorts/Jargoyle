@@ -274,4 +274,47 @@ describe('DocumentDetailsPage', () => {
 
     expect(screen.getByText('Total')).toBeInTheDocument()
   })
+
+  it('renders jargon terms sorted alphabetically, case-insensitively', async () => {
+    mockUseDocumentStatus.mockReturnValue({
+      status: null,
+      step: null,
+      errorMessage: null,
+      isComplete: false,
+      isFailed: false,
+    })
+
+    server.use(
+      http.get('/api/documents/:id', ({ params }) => {
+        return HttpResponse.json({
+          id: params.id,
+          title: 'Test Doc',
+          documentType: 'BILL',
+          inputType: 'PDF',
+          originalFilename: 'test.pdf',
+          status: 'READY',
+          errorMessage: null,
+          summary: {
+            plainSummary: 'A test document.',
+            keyFacts: '{"amounts":[],"dates":[],"parties":[]}',
+            flaggedTerms: JSON.stringify([
+              { term: 'Zero-coupon', definition: 'A bond with no coupon' },
+              { term: 'API', definition: 'Application Programming Interface' },
+              { term: 'bandwidth', definition: 'Data transfer capacity' },
+            ]),
+          },
+          createdAt: '2026-03-01T12:00:00Z',
+        })
+      }),
+    )
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('API')).toBeInTheDocument()
+    })
+
+    const terms = screen.getAllByText(/API|bandwidth|Zero-coupon/)
+    expect(terms.map((el) => el.textContent)).toEqual(['API', 'bandwidth', 'Zero-coupon'])
+  })
 })

@@ -161,7 +161,11 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
 
   const summary = document.summary
   const title = displayTitle(document)
-  const flaggedTerms: FlaggedTerm[] = summary ? parseFlaggedTerms(summary.flaggedTerms) : []
+  const flaggedTerms: FlaggedTerm[] = summary
+    ? parseFlaggedTerms(summary.flaggedTerms).sort((a, b) =>
+        a.term.localeCompare(b.term, undefined, { sensitivity: 'base' }),
+      )
+    : []
   const keyFacts: KeyFacts = summary ? parseKeyFacts(summary.keyFacts) : { amounts: [], dates: [], parties: [] }
   const hasKeyFacts = keyFacts.amounts.length > 0 || keyFacts.dates.length > 0 || keyFacts.parties.length > 0
 

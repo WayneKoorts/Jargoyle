@@ -160,4 +160,52 @@ describe('DocumentList', () => {
       expect(lastSortParam).toBe('title,desc')
     })
   })
+
+  it('sort direction toggle changes direction', async () => {
+    let lastSortParam = ''
+
+    server.use(
+      http.get('/api/documents', ({ request }) => {
+        const url = new URL(request.url)
+        lastSortParam = url.searchParams.get('sort') ?? ''
+        return HttpResponse.json({
+          content: [
+            {
+              id: 'doc-1',
+              title: 'Doc',
+              documentType: 'OTHER',
+              inputType: 'TEXT',
+              status: 'READY',
+              originalFilename: null,
+              textPreview: null,
+              createdAt: '2026-03-01T12:00:00Z',
+            },
+          ],
+          totalElements: 1,
+          totalPages: 1,
+          numberOfElements: 1,
+          first: true,
+          last: true,
+          empty: false,
+        })
+      }),
+    )
+
+    renderWithProviders(<DocumentList />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Doc')).toBeInTheDocument()
+    })
+
+    // Default sort direction is desc
+    expect(lastSortParam).toBe('createdAt,desc')
+
+    // Toggle direction to asc
+    const directionButton = screen.getByTitle('Descending')
+    await userEvent.click(directionButton)
+
+    await waitFor(() => {
+      expect(lastSortParam).toBe('createdAt,asc')
+    })
+  })
 })

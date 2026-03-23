@@ -135,7 +135,7 @@ public class DocumentServiceTests {
         var document = createDocument();
         var pageable = PageRequest.of(0, 10);
         var page = new PageImpl<>(List.of(document), pageable, 1);
-        when(mockDocumentRepository.findByUserIdOrderByCreatedAtDesc(USER_ID, pageable))
+        when(mockDocumentRepository.findByUserId(USER_ID, pageable))
                 .thenReturn(page);
 
         var result = sut.list(USER_ID, pageable);
@@ -152,7 +152,7 @@ public class DocumentServiceTests {
     void list_noDocuments_returnsEmptyPage() {
         var pageable = PageRequest.of(0, 10);
         Page<Document> emptyPage = new PageImpl<>(List.of(), pageable, 0);
-        when(mockDocumentRepository.findByUserIdOrderByCreatedAtDesc(USER_ID, pageable))
+        when(mockDocumentRepository.findByUserId(USER_ID, pageable))
                 .thenReturn(emptyPage);
 
         var result = sut.list(USER_ID, pageable);

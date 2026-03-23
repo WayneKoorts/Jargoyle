@@ -48,7 +48,7 @@ public class DocumentService {
 
     public Page<DocumentListResponse> list(UUID userId, Pageable pageable) {
         log.debug("Getting document list for user {}", userId);
-        return documentRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
+        return documentRepository.findByUserId(userId, pageable)
             .map(d -> new DocumentListResponse(
                 d.getId(),
                 d.getTitle(),

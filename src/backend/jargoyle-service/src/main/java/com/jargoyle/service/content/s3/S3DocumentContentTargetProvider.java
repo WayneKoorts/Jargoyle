@@ -3,6 +3,7 @@ package com.jargoyle.service.content.s3;
 import java.util.UUID;
 
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.ContentDisposition;
 import org.springframework.stereotype.Service;
 
 import com.jargoyle.service.content.DocumentContentTargetProvider;
@@ -48,12 +49,13 @@ public class S3DocumentContentTargetProvider implements DocumentContentTargetPro
                 .key(storageKey);
 
         // Override the response Content-Disposition so the browser renders inline
-        // rather than prompting a download. Include the original filename if available.
-        if (originalFilename != null && !originalFilename.isBlank()) {
-            getRequestBuilder.responseContentDisposition("inline; filename=\"%s\"".formatted(originalFilename));
-        } else {
-            getRequestBuilder.responseContentDisposition("inline");
-        }
+        // rather than prompting a download. Uses Spring's ContentDisposition builder
+        // to safely escape filenames containing quotes, semicolons, or other special
+        // characters that could produce a malformed header value.
+        var contentDisposition = originalFilename != null && !originalFilename.isBlank()
+                ? ContentDisposition.inline().filename(originalFilename).build()
+                : ContentDisposition.inline().build();
+        getRequestBuilder.responseContentDisposition(contentDisposition.toString());
 
         var presignRequest = GetObjectPresignRequest.builder()
                 .signatureDuration(properties.uploadUrlTtl())

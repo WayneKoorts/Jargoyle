@@ -1,7 +1,6 @@
 package com.jargoyle.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -73,7 +72,7 @@ class DocumentControllerContentTests {
         mockMvc.perform(get("/api/documents/{documentId}/original", DOCUMENT_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.url").value("https://s3.example.com/presigned-url"))
-                .andExpect(jsonPath("$.text").doesNotExist())
+                .andExpect(jsonPath("$.text").value(nullValue()))
                 .andExpect(jsonPath("$.inputType").value("PDF"));
     }
 
@@ -84,7 +83,7 @@ class DocumentControllerContentTests {
 
         mockMvc.perform(get("/api/documents/{documentId}/original", DOCUMENT_ID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.url").doesNotExist())
+                .andExpect(jsonPath("$.url").value(nullValue()))
                 .andExpect(jsonPath("$.text").value("Hello, world!"))
                 .andExpect(jsonPath("$.inputType").value("TEXT"));
     }

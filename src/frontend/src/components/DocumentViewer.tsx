@@ -39,48 +39,50 @@ export default function DocumentViewer({ documentId, originalFilename }: Documen
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
       {/* Accordion header — always visible */}
-      <button
-        type="button"
-        onClick={handleToggle}
-        className="flex w-full cursor-pointer select-none items-center gap-2 px-5 py-4"
-        aria-expanded={isExpanded}
-      >
-        <h3 className="min-w-0 truncate text-lg font-semibold text-slate-900">
-          Original Document
-        </h3>
+      {/* Header row — button and link are siblings to avoid nesting interactive elements */}
+      <div className="flex items-center px-5 py-4">
+        <button
+          type="button"
+          onClick={handleToggle}
+          className="flex flex-1 cursor-pointer select-none items-center gap-2 text-left"
+          aria-expanded={isExpanded}
+        >
+          <h3 className="min-w-0 truncate text-lg font-semibold text-slate-900">
+            Original Document
+          </h3>
 
-        {/* Inline loading spinner in header */}
-        {isLoading && (
-          <Loader2
-            className="h-4 w-4 shrink-0 animate-spin text-slate-400"
-            aria-label="Loading"
+          {/* Inline loading spinner in header */}
+          {isLoading && (
+            <Loader2
+              className="h-4 w-4 shrink-0 animate-spin text-slate-400"
+              aria-label="Loading"
+            />
+          )}
+
+          <span className="flex-1" />
+
+          <ChevronDown
+            className={`h-5 w-5 shrink-0 text-slate-400 transition-transform duration-150 ${
+              isExpanded ? 'rotate-180' : ''
+            }`}
+            aria-hidden="true"
           />
-        )}
+        </button>
 
-        <span className="flex-1" />
-
-        {/* Open in new tab — shown after content loads */}
+        {/* Open in new tab — shown after content loads, outside the button */}
         {isFetched && !isError && externalUrl && (
           <a
             href={externalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="flex shrink-0 items-center rounded p-1 text-slate-400 transition-colors hover:text-slate-600"
+            className="ml-2 flex shrink-0 items-center rounded p-1 text-slate-400 transition-colors hover:text-slate-600"
             title="Open original in new tab"
             aria-label="Open original in new tab"
           >
             <ExternalLink className="h-4 w-4" aria-hidden="true" />
           </a>
         )}
-
-        <ChevronDown
-          className={`h-5 w-5 shrink-0 text-slate-400 transition-transform duration-150 ${
-            isExpanded ? 'rotate-180' : ''
-          }`}
-          aria-hidden="true"
-        />
-      </button>
+      </div>
 
       {/* Accordion body — conditionally rendered */}
       {isExpanded && (

@@ -213,3 +213,22 @@ export function fetchDocument(id: string): Promise<DocumentResponse> {
 export function deleteDocument(id: string): Promise<void> {
   return apiClient<void>(`/documents/${id}`, { method: 'DELETE' })
 }
+
+/**
+ * Response from the backend indicating where to access the original document content.
+ * For file-based documents (PDF, IMAGE), {@link url} contains a presigned S3 URL
+ * or a backend-relative URL. For TEXT documents, {@link text} contains the content.
+ */
+export interface DocumentContentLocationResponse {
+  url: string | null
+  text: string | null
+  inputType: string
+}
+
+/**
+ * Fetches the location/content of the original document for inline viewing.
+ * Returns a JSON response with either a URL (for PDF/IMAGE) or inline text (for TEXT).
+ */
+export function fetchDocumentContentLocation(id: string): Promise<DocumentContentLocationResponse> {
+  return apiClient<DocumentContentLocationResponse>(`/documents/${id}/original`)
+}

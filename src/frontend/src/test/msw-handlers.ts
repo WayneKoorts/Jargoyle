@@ -185,6 +185,22 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  // Document original content location — default to TEXT
+  http.get('/api/documents/:id/original', () => {
+    return HttpResponse.json({
+      url: null,
+      text: 'Sample document text content.',
+      inputType: 'TEXT',
+    })
+  }),
+
+  // Document original content stream (local dev fallback)
+  http.get('/api/documents/:id/original/stream', () => {
+    return new HttpResponse('Sample document text content.', {
+      headers: { 'Content-Type': 'text/plain; charset=UTF-8' },
+    })
+  }),
+
   // Conversations — create
   http.post('/api/documents/:documentId/conversations', ({ params }) => {
     return HttpResponse.json(

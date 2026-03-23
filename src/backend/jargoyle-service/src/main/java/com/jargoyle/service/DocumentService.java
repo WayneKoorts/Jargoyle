@@ -1,5 +1,6 @@
 package com.jargoyle.service;
 
+import com.jargoyle.dto.DocumentContentLocationResponse;
 import com.jargoyle.dto.DocumentListResponse;
 import com.jargoyle.dto.DocumentResponse;
 import com.jargoyle.dto.DocumentSummaryResponse;
@@ -7,7 +8,9 @@ import com.jargoyle.dto.DocumentUpdateRequest;
 import com.jargoyle.entity.Document;
 import com.jargoyle.entity.DocumentStatus;
 import com.jargoyle.entity.DocumentType;
+import com.jargoyle.entity.InputType;
 import com.jargoyle.repository.DocumentSummaryRepository;
+import com.jargoyle.service.content.DocumentContentTargetProvider;
 import com.jargoyle.service.exception.DocumentNotFoundException;
 import com.jargoyle.service.storage.StorageService;
 
@@ -28,15 +31,18 @@ public class DocumentService {
     private final DocumentRepository documentRepository;
     private final DocumentSummaryRepository documentSummaryRepository;
     private final StorageService storageService;
+    private final DocumentContentTargetProvider contentTargetProvider;
 
     public DocumentService(
             DocumentRepository documentRepository,
             DocumentSummaryRepository documentSummaryRepository,
-            StorageService storageService) {
+            StorageService storageService,
+            DocumentContentTargetProvider contentTargetProvider) {
 
         this.documentRepository = documentRepository;
         this.documentSummaryRepository = documentSummaryRepository;
         this.storageService = storageService;
+        this.contentTargetProvider = contentTargetProvider;
     }
 
     public DocumentResponse getById(UUID userId, UUID documentId) {
@@ -82,6 +88,53 @@ public class DocumentService {
         documentRepository.save(document);
 
         return toDocumentResponse(document);
+    }
+
+    /**
+     * Returns the location from which the frontend can access the original document content.
+     *
+     * <p>For TEXT documents, the extracted text is returned inline. For file-based
+     * documents (PDF, IMAGE), a URL is generated via the
+     * {@link DocumentContentTargetProvider} — a presigned S3 URL in production or a
+     * backend-relative URL in local development.</p>
+     *
+     * @param userId     the ID of the requesting user (for ownership verification)
+     * @param documentId the ID of the document
+     * @return a {@link DocumentContentLocationResponse} containing the content or a URL to fetch it
+     * @throws DocumentNotFoundException if the document does not exist or does not belong to the user
+     * @throws IllegalStateException     if a file-based document has no storage key
+     */
+    public DocumentContentLocationResponse getContentLocation(UUID userId, UUID documentId) {
+        log.debug("Resolving content location for document {} for user {}", documentId, userId);
+        var document = getDocumentEntity(userId, documentId);
+
+        if (document.getInputType() == InputType.TEXT) {
+            var text = document.getExtractedText() != null ? document.getExtractedText() : "";
+            return new DocumentContentLocationResponse(null, text, "TEXT");
+        }
+
+        // PDF or IMAGE — delegate to the profile-specific content target provider
+        var storageKey = document.getStorageKey();
+        if (storageKey == null || storageKey.isBlank()) {
+            throw new IllegalStateException(
+                    "Document %s has input type %s but no storage key".formatted(documentId, document.getInputType()));
+        }
+
+        var url = contentTargetProvider.createContentUrl(documentId, storageKey, document.getOriginalFilename());
+        return new DocumentContentLocationResponse(url, null, document.getInputType().toString());
+    }
+
+    /**
+     * Retrieves the document entity after verifying ownership.
+     *
+     * @param userId     the ID of the requesting user
+     * @param documentId the ID of the document
+     * @return the document entity
+     * @throws DocumentNotFoundException if the document does not exist or does not belong to the user
+     */
+    public Document getDocumentEntity(UUID userId, UUID documentId) {
+        return documentRepository.findByIdAndUserId(documentId, userId)
+                .orElseThrow(() -> new DocumentNotFoundException(documentId));
     }
 
     @Transactional

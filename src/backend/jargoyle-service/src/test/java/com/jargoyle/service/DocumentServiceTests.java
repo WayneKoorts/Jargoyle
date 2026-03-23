@@ -4,6 +4,7 @@ import com.jargoyle.dto.DocumentUpdateRequest;
 import com.jargoyle.entity.*;
 import com.jargoyle.repository.DocumentRepository;
 import com.jargoyle.repository.DocumentSummaryRepository;
+import com.jargoyle.service.content.DocumentContentTargetProvider;
 import com.jargoyle.service.exception.DocumentNotFoundException;
 import com.jargoyle.service.storage.StorageService;
 
@@ -27,6 +28,7 @@ public class DocumentServiceTests {
     private DocumentRepository mockDocumentRepository;
     private DocumentSummaryRepository mockDocumentSummaryRepository;
     private StorageService mockStorageService;
+    private DocumentContentTargetProvider mockContentTargetProvider;
 
     private DocumentService sut;
 
@@ -38,11 +40,13 @@ public class DocumentServiceTests {
         mockDocumentRepository = mock(DocumentRepository.class);
         mockDocumentSummaryRepository = mock(DocumentSummaryRepository.class);
         mockStorageService = mock(StorageService.class);
+        mockContentTargetProvider = mock(DocumentContentTargetProvider.class);
 
         sut = new DocumentService(
                 mockDocumentRepository,
                 mockDocumentSummaryRepository,
-                mockStorageService);
+                mockStorageService,
+                mockContentTargetProvider);
     }
 
     // ── Helper methods ──────────────────────────────────────────────
@@ -263,6 +267,75 @@ public class DocumentServiceTests {
                 .isInstanceOf(DocumentNotFoundException.class);
 
         verifyNoInteractions(mockStorageService);
+    }
+
+    // ── getContentLocation tests ─────────────────────────────────────
+
+    @Test
+    void getContentLocation_pdfDocument_returnsUrlFromContentTargetProvider() {
+        var document = createDocument();
+        when(mockDocumentRepository.findByIdAndUserId(DOCUMENT_ID, USER_ID))
+                .thenReturn(Optional.of(document));
+        when(mockContentTargetProvider.createContentUrl(any(), eq("documents/test-file.pdf"), eq("test.pdf")))
+                .thenReturn("https://s3.example.com/presigned-url");
+
+        var result = sut.getContentLocation(USER_ID, DOCUMENT_ID);
+
+        assertThat(result.url()).isEqualTo("https://s3.example.com/presigned-url");
+        assertThat(result.text()).isNull();
+        assertThat(result.inputType()).isEqualTo("PDF");
+    }
+
+    @Test
+    void getContentLocation_textDocument_returnsInlineText() {
+        var document = createDocument();
+        document.setInputType(InputType.TEXT);
+        document.setStorageKey(null);
+        document.setExtractedText("Hello, world!");
+        when(mockDocumentRepository.findByIdAndUserId(DOCUMENT_ID, USER_ID))
+                .thenReturn(Optional.of(document));
+
+        var result = sut.getContentLocation(USER_ID, DOCUMENT_ID);
+
+        assertThat(result.url()).isNull();
+        assertThat(result.text()).isEqualTo("Hello, world!");
+        assertThat(result.inputType()).isEqualTo("TEXT");
+        verifyNoInteractions(mockContentTargetProvider);
+    }
+
+    @Test
+    void getContentLocation_textDocumentWithNullExtractedText_returnsEmptyString() {
+        var document = createDocument();
+        document.setInputType(InputType.TEXT);
+        document.setStorageKey(null);
+        document.setExtractedText(null);
+        when(mockDocumentRepository.findByIdAndUserId(DOCUMENT_ID, USER_ID))
+                .thenReturn(Optional.of(document));
+
+        var result = sut.getContentLocation(USER_ID, DOCUMENT_ID);
+
+        assertThat(result.text()).isEmpty();
+    }
+
+    @Test
+    void getContentLocation_documentNotFound_throwsDocumentNotFoundException() {
+        when(mockDocumentRepository.findByIdAndUserId(DOCUMENT_ID, USER_ID))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> sut.getContentLocation(USER_ID, DOCUMENT_ID))
+                .isInstanceOf(DocumentNotFoundException.class);
+    }
+
+    @Test
+    void getContentLocation_pdfWithNoStorageKey_throwsIllegalStateException() {
+        var document = createDocument();
+        document.setStorageKey(null);
+        when(mockDocumentRepository.findByIdAndUserId(DOCUMENT_ID, USER_ID))
+                .thenReturn(Optional.of(document));
+
+        assertThatThrownBy(() -> sut.getContentLocation(USER_ID, DOCUMENT_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no storage key");
     }
 
 }

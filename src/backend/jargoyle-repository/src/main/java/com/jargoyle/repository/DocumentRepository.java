@@ -16,7 +16,7 @@ import com.jargoyle.entity.Document;
 import com.jargoyle.entity.DocumentStatus;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
-    Page<Document> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    Page<Document> findByUserId(UUID userId, Pageable pageable);
     Optional<Document> findByIdAndUserId(UUID id, UUID userId);
     void deleteByIdAndUserId(UUID id, UUID userId);
 

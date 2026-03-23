@@ -76,9 +76,14 @@ export interface FlaggedTerm {
   definition: string
 }
 
+/** Case-insensitive comparator for sorting key facts by label (A–Z). */
+const compareKeyFactLabels = (a: KeyFact, b: KeyFact) =>
+  a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
+
 /**
  * Safely parses the keyFacts JSON string from the backend.
  * Returns empty groups if the input is null, undefined, or malformed.
+ * Each group is sorted alphabetically by label (case-insensitive).
  */
 export function parseKeyFacts(json: string | null | undefined): KeyFacts {
   const empty: KeyFacts = { amounts: [], dates: [], parties: [] }
@@ -86,9 +91,9 @@ export function parseKeyFacts(json: string | null | undefined): KeyFacts {
   try {
     const parsed = JSON.parse(json)
     return {
-      amounts: Array.isArray(parsed.amounts) ? parsed.amounts : [],
-      dates: Array.isArray(parsed.dates) ? parsed.dates : [],
-      parties: Array.isArray(parsed.parties) ? parsed.parties : [],
+      amounts: Array.isArray(parsed.amounts) ? [...parsed.amounts].sort(compareKeyFactLabels) : [],
+      dates: Array.isArray(parsed.dates) ? [...parsed.dates].sort(compareKeyFactLabels) : [],
+      parties: Array.isArray(parsed.parties) ? [...parsed.parties].sort(compareKeyFactLabels) : [],
     }
   } catch (e) {
     console.warn('Failed to parse keyFacts JSON — displaying empty results:', e)

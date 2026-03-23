@@ -242,7 +242,7 @@ export default function AdminUserDetailsPage({ user: currentUser, onLogout }: Ad
                 value={effectiveRole}
                 onChange={(e) => { setSelectedRole(e.target.value); setSaveSuccess(false) }}
                 disabled={isSelf || updateMutation.isPending}
-                className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-50"
+                className="mt-1 block w-full rounded-md border border-slate-300 pl-3 py-1.5 text-sm text-slate-700 disabled:opacity-50"
               >
                 <option value="USER">USER</option>
                 <option value="ADMIN">ADMIN</option>

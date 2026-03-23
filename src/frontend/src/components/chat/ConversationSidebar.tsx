@@ -28,7 +28,7 @@ export default function ConversationSidebar({
         value={activeConversationId ?? ''}
         onChange={(e) => onSelect(e.target.value)}
         disabled={isLoading || conversations.length === 0}
-        className="h-[34px] flex-1 rounded-full border border-slate-300 bg-white px-3 text-sm text-slate-700 disabled:text-slate-400"
+        className="h-[34px] flex-1 rounded-full border border-slate-300 bg-white pl-3 text-sm text-slate-700 disabled:text-slate-400"
         aria-label="Select conversation"
       >
         {isLoading && <option value="">Loading…</option>}

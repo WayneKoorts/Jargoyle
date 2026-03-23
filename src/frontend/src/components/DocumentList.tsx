@@ -90,7 +90,7 @@ export default function DocumentList() {
             id="sort-field"
             value={sortField}
             onChange={(e) => handleSortFieldChange(e.target.value)}
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-700"
+            className="rounded-md border border-slate-300 pl-2 py-1.5 text-sm text-slate-700"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>

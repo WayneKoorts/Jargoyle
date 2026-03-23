@@ -23,4 +23,36 @@
   [type="submit"] {
     cursor: pointer;
   }
+
+  /*
+   * Custom select appearance: strips the platform-native dropdown arrow
+   * and replaces it with a lightweight SVG chevron (slate-500 stroke).
+   * padding-right leaves room so the chevron doesn't crowd selected text.
+   */
+  select {
+    appearance: none;
+    background-color: white;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1rem;
+    padding-right: 2rem;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    transition: border-color 150ms ease-in-out, box-shadow 150ms ease-in-out, background-color 150ms ease-in-out;
+  }
+
+  select:hover:not(:disabled) {
+    background-color: #f8fafc; /* slate-50 */
+    border-color: #94a3b8;     /* slate-400 */
+  }
+
+  select:focus {
+    outline: none;
+    border-color: #6366f1;     /* indigo-500 — matches existing input focus style */
+    box-shadow: 0 0 0 1px #6366f1;
+  }
+
+  select:disabled {
+    cursor: not-allowed;
+  }
 }

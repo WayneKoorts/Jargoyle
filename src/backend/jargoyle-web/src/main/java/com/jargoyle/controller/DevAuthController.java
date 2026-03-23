@@ -109,6 +109,7 @@ public class DevAuthController {
                 // Ensure the role is up to date (e.g. if the user was created
                 // before the role column existed).
                 existing.setRole(role);
+                existing.setEnabled(true);
                 existing.setLastLoginAt(Instant.now());
                 return userRepository.save(existing);
             })
@@ -119,6 +120,7 @@ public class DevAuthController {
                 user.setOauthProvider(DEV_PROVIDER);
                 user.setOauthSubject(subject);
                 user.setRole(role);
+                user.setEnabled(true);
                 user.setLastLoginAt(Instant.now());
                 return userRepository.save(user);
             });
@@ -126,6 +128,6 @@ public class DevAuthController {
 
     private UserDto toDto(User user) {
         return new UserDto(user.getId(), user.getEmail(), user.getDisplayName(),
-                user.getOauthProvider(), user.getRole().name());
+                user.getOauthProvider(), user.getRole().name(), user.isEnabled());
     }
 }

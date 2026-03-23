@@ -42,6 +42,7 @@ public class AdminService {
         // Role.valueOf() throws IllegalArgumentException for invalid values,
         // which GlobalExceptionHandler maps to 400 Bad Request.
         Role newRole = Role.valueOf(request.role());
+        boolean newEnabled = request.enabled() != null ? request.enabled() : target.isEnabled();
 
         // Prevent demoting the last admin — the system must always have at least one.
         if (target.getRole() == Role.ADMIN && newRole != Role.ADMIN) {
@@ -50,7 +51,17 @@ public class AdminService {
             }
         }
 
+        // Re-check the enabled admin count on every update so disabling an admin
+        // takes effect immediately for existing sessions without leaving the
+        // system with no enabled administrator who can reverse the change.
+        if (isDisablingOrDemotingEnabledAdmin(target, newRole, newEnabled)) {
+            if (userRepository.countByRoleAndEnabledTrue(Role.ADMIN) == 1) {
+                throw new AdminOperationException("Cannot disable the last enabled admin user");
+            }
+        }
+
         target.setRole(newRole);
+        target.setEnabled(newEnabled);
 
         // Apply optional profile fields — null means "don't change".
         // Reject blank display names so users always have a visible label.
@@ -81,7 +92,17 @@ public class AdminService {
             throw new AdminOperationException("Cannot delete the last admin user");
         }
 
+        if (target.getRole() == Role.ADMIN && target.isEnabled() && userRepository.countByRoleAndEnabledTrue(Role.ADMIN) == 1) {
+            throw new AdminOperationException("Cannot delete the last enabled admin user");
+        }
+
         userRepository.deleteById(targetId);
+    }
+
+    private boolean isDisablingOrDemotingEnabledAdmin(User target, Role newRole, boolean newEnabled) {
+        return target.getRole() == Role.ADMIN
+            && target.isEnabled()
+            && (newRole != Role.ADMIN || !newEnabled);
     }
 
     private AdminUserDto toDto(User user) {
@@ -91,6 +112,7 @@ public class AdminService {
             user.getDisplayName(),
             user.getOauthProvider(),
             user.getRole().name(),
+            user.isEnabled(),
             user.getCreatedAt(),
             user.getLastLoginAt()
         );

@@ -8,6 +8,7 @@ export interface AdminUser {
   displayName: string
   oauthProvider: string
   role: string
+  enabled: boolean
   createdAt: string
   lastLoginAt: string | null
 }
@@ -23,6 +24,7 @@ export interface UpdateUserRequest {
   role: string
   displayName?: string
   email?: string
+  enabled?: boolean
 }
 
 export function fetchAdminUsers(params: AdminUserListParams): Promise<Page<AdminUser>> {

@@ -15,6 +15,11 @@ const ROLE_COLOURS: Record<string, string> = {
   ADMIN: 'bg-amber-100 text-amber-800',
 }
 
+const STATUS_COLOURS = {
+  enabled: 'bg-emerald-100 text-emerald-800',
+  disabled: 'bg-rose-100 text-rose-800',
+} as const
+
 function roleClasses(role: string): string {
   return ROLE_COLOURS[role] ?? 'bg-slate-100 text-slate-700'
 }
@@ -132,6 +137,13 @@ export default function UserList({
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span className={`rounded px-2 py-0.5 text-xs font-medium ${roleClasses(user.role)}`}>
                     {user.role}
+                  </span>
+                  <span
+                    className={`rounded px-2 py-0.5 text-xs font-medium ${
+                      user.enabled ? STATUS_COLOURS.enabled : STATUS_COLOURS.disabled
+                    }`}
+                  >
+                    {user.enabled ? 'Enabled' : 'Disabled'}
                   </span>
                   <span className="text-xs text-slate-400">
                     Joined {formatDate(user.createdAt)}

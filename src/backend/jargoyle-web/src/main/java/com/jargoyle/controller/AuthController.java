@@ -42,8 +42,8 @@ public class AuthController {
             user.getEmail(),
             user.getDisplayName(),
             user.getOauthProvider(),
-            user.getRole()
-            .name());
+            user.getRole().name(),
+            user.isEnabled());
         return ResponseEntity.ok(dto);
     }
 

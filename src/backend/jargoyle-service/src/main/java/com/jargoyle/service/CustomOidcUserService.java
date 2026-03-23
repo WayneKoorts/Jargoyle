@@ -80,13 +80,15 @@ public class CustomOidcUserService extends OidcUserService {
         newUser.setOauthProvider(providerName);
         newUser.setOauthSubject(subjectName);
         newUser.setLastLoginAt(Instant.now());
+        newUser.setEnabled(false);
 
         var email = loadedUser.getAttribute("email");
         if (email == null) email = "notset";
         newUser.setEmail((String) email);
 
         // New users default to Role.USER (set in the entity default), so no
-        // explicit setRole call is needed here.
+        // explicit setRole call is needed here. They also start disabled until
+        // an admin explicitly enables them.
 
         try {
             return userRepository.save(newUser);

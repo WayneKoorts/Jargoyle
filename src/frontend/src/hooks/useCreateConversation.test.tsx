@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { server } from '../test/msw-server'
@@ -89,6 +89,10 @@ describe('useCreateConversation', () => {
       }
     })
 
-    expect(result.current.isError).toBe(true)
+    // React Query's mutation state may not transition synchronously after
+    // act(), so poll until isError settles to avoid CI timing flakes.
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true)
+    })
   })
 })

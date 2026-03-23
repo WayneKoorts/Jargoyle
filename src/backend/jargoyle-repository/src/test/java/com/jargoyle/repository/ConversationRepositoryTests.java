@@ -103,13 +103,22 @@ class ConversationRepositoryTests {
 
     @Test
     void findByDocumentId_orderedByCreatedAtDescThenIdDesc() {
-        // Arrange — create three conversations with staggered creation times.
-        // We set lastMessageAt to a different order to prove it's no longer
+        // Arrange — create three conversations, then assign deterministic
+        // timestamps via native SQL to avoid flakiness from @CreationTimestamp
+        // assigning identical values during rapid inserts.  We also set
+        // lastMessageAt to the *opposite* order to prove it is no longer
         // used for sorting.
         var oldest = createConversation(testDocument, "Oldest");
         var middle = createConversation(testDocument, "Middle");
         var newest = createConversation(testDocument, "Newest");
         entityManager.flush();
+
+        var baseTime = Instant.parse("2025-01-01T00:00:00Z");
+        setConversationTimestamps(oldest, baseTime,                    baseTime.plusSeconds(300));
+        setConversationTimestamps(middle, baseTime.plusSeconds(100),    baseTime.plusSeconds(200));
+        setConversationTimestamps(newest, baseTime.plusSeconds(200),    baseTime.plusSeconds(100));
+        entityManager.flush();
+        entityManager.clear();
 
         // Act
         var results = conversationRepository
@@ -171,6 +180,20 @@ class ConversationRepositoryTests {
         conversation.setLastMessageAt(Instant.now());
         entityManager.persist(conversation);
         return conversation;
+    }
+
+    /**
+     * Sets both {@code created_at} and {@code last_message_at} via native SQL
+     * so the test controls timestamps independently of {@code @CreationTimestamp}.
+     */
+    private void setConversationTimestamps(
+            Conversation conversation, Instant createdAt, Instant lastMessageAt) {
+        entityManager.createNativeQuery(
+                "update conversations set created_at = :createdAt, last_message_at = :lastMessageAt where id = :id")
+            .setParameter("createdAt", createdAt)
+            .setParameter("lastMessageAt", lastMessageAt)
+            .setParameter("id", conversation.getId())
+            .executeUpdate();
     }
 
 }

@@ -13,6 +13,7 @@ import {
   type KeyFact,
   type FlaggedTerm,
 } from '../api/documents'
+import DocumentViewer from '../components/DocumentViewer'
 import Layout from '../components/Layout'
 import ChatInterface from '../components/chat/ChatInterface'
 import ConversationSidebar from '../components/chat/ConversationSidebar'
@@ -259,8 +260,15 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
         {/* Summary panel — takes remaining space */}
         <div className={`flex-1 overflow-y-auto ${isChatOpen ? 'hidden md:block' : ''}`}>
           <div className="mx-auto max-w-4xl px-6 py-6">
+            <div className="space-y-8">
+              {/* Original document viewer — lazy loaded on expand */}
+              <DocumentViewer
+                documentId={document.id}
+                originalFilename={document.originalFilename}
+              />
+
             {summary && (
-              <div className="space-y-8">
+              <>
                 {/* Flagged Terms */}
                 <section className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-6">
                   <h3 className="text-lg font-semibold text-slate-900">Jargon Explained</h3>
@@ -306,12 +314,12 @@ export default function DocumentDetailsPage({ user, onLogout }: DocumentDetailsP
                     </div>
                   </section>
                 )}
-              </div>
+              </>
             )}
+            </div>
           </div>
         </div>
 
-        {/* Chat panel — on the right */}
         {/* Chat panel — on the right */}
         {isChatOpen && (
           <div className="flex w-full flex-col border-l border-slate-200 bg-slate-50 md:w-[clamp(450px,30%,600px)]">

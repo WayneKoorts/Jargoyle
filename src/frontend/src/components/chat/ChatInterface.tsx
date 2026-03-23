@@ -158,7 +158,7 @@ export default function ChatInterface({ conversationId, suggestedQuestions }: Ch
             onKeyDown={handleKeyDown}
             disabled={isStreaming}
             placeholder="Ask a question about this document…"
-            rows={1}
+            rows={3}
             className="flex-1 resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
           />
           <button

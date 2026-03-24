@@ -50,12 +50,17 @@ export function useChatStream(conversationId: string) {
             setStreamingContent(prev => prev + (event.content ?? ''))
             break
           case 'COMPLETE':
-            // The server has persisted both the user message and the assistant
-            // response. Invalidate queries so useMessages refetches the real
-            // data, and useConversations picks up the updated lastMessageAt.
+            // Wait for the messages refetch to land in the cache before
+            // clearing optimistic state — prevents the flash where the
+            // latest exchange briefly vanishes between clearing the
+            // stand-in state and the refetch completing.
+            await queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+            // All state updates happen synchronously, so React batches
+            // them into a single render — no intermediate "flash" frame.
             setStreamingContent('')
             setOptimisticMessage(null)
-            queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+            setIsStreaming(false)
+            // Title and lastMessageAt updates can happen in the background
             queryClient.invalidateQueries({ queryKey: ['conversations'] })
             break
           case 'ERROR':

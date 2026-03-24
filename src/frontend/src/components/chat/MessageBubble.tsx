@@ -1,6 +1,5 @@
 import type { Message } from '../../api/conversations'
 import FormattedContent from './FormattedContent'
-import SourceChunkDisplay from './SourceChunkDisplay'
 
 interface MessageBubbleProps {
   message: Message
@@ -50,16 +49,11 @@ export default function MessageBubble({ message, isStreaming = false, isThinking
   }
 
   // Assistant message — streaming or completed
-  const showSources = !isStreaming
-    && message.sourceChunks != null
-    && message.sourceChunks.length > 0
-
   return (
     <div className="flex justify-start">
       <div className="max-w-[90%] rounded-2xl rounded-bl-sm border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800">
         <FormattedContent text={message.content} />
         {isStreaming && <span className="ml-0.5 inline-block animate-pulse">▊</span>}
-        {showSources && <SourceChunkDisplay sourceChunks={message.sourceChunks!} />}
       </div>
     </div>
   )

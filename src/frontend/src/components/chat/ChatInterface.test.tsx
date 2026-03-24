@@ -113,12 +113,6 @@ describe('ChatInterface', () => {
     expect(screen.getByText('This document is a utility bill.')).toBeInTheDocument()
   })
 
-  it('shows source chunks on assistant messages', () => {
-    renderChat({ messages: { messages: sampleMessages } })
-
-    expect(screen.getByText('Section 1')).toBeInTheDocument()
-  })
-
   it('shows optimistic user message', () => {
     const optimistic: Message = {
       id: 'optimistic-1',

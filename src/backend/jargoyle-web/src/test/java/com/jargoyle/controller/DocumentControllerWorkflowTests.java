@@ -52,7 +52,8 @@ class DocumentControllerWorkflowTests {
         mockDocumentService = mock(DocumentService.class);
         mockDocumentIngestionService = mock(DocumentIngestionService.class);
 
-        var controller = new DocumentController(mockDocumentService, mockDocumentIngestionService, new SseEmitterRegistry(), mock(com.jargoyle.service.storage.StorageService.class));
+        var controller = new DocumentController(mockDocumentService, mockDocumentIngestionService, new SseEmitterRegistry(), mock(com.jargoyle.service.storage.StorageService.class),
+                new com.jargoyle.config.properties.MvcAsyncProperties(0, 0, 0, null, 0));
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setCustomArgumentResolvers(new FixedCurrentUserResolver())

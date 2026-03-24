@@ -27,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.jargoyle.SseEmitterRegistry;
+import com.jargoyle.config.properties.MvcAsyncProperties;
 import com.jargoyle.dto.DocumentContentLocationResponse;
 import com.jargoyle.dto.DocumentListResponse;
 import com.jargoyle.dto.DocumentResponse;
@@ -50,17 +51,20 @@ public class DocumentController {
     private final DocumentIngestionService documentIngestionService;
     private final SseEmitterRegistry sseEmitterRegistry;
     private final StorageService storageService;
+    private final MvcAsyncProperties mvcAsyncProperties;
 
     public DocumentController(
         DocumentService documentService,
         DocumentIngestionService documentIngestionService,
         SseEmitterRegistry sseEmitterRegistry,
-        StorageService storageService) {
+        StorageService storageService,
+        MvcAsyncProperties mvcAsyncProperties) {
 
         this.documentService = documentService;
         this.documentIngestionService = documentIngestionService;
         this.sseEmitterRegistry = sseEmitterRegistry;
         this.storageService = storageService;
+        this.mvcAsyncProperties = mvcAsyncProperties;
     }
 
     @GetMapping()
@@ -89,7 +93,7 @@ public class DocumentController {
         @PathVariable UUID documentId) {
 
         var document = documentService.getById(user.getId(), documentId);
-        var emitter = new SseEmitter(300_000L);
+        var emitter = new SseEmitter(mvcAsyncProperties.timeoutMillis());
         sseEmitterRegistry.register(documentId, emitter);
 
         try {

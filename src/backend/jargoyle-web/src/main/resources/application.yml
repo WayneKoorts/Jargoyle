@@ -52,6 +52,12 @@ spring:
 
 jargoyle:
   async:
+    mvc:
+      core-pool-size: 5
+      max-pool-size: 20
+      queue-capacity: 100
+      thread-name-prefix: mvc-async-
+      timeout-millis: 300000
     document-processing:
       core-pool-size: 2
       max-pool-size: 5

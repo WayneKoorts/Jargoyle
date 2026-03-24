@@ -53,7 +53,8 @@ class DocumentControllerContentTests {
         var mockIngestionService = mock(DocumentIngestionService.class);
 
         var controller = new DocumentController(
-                mockDocumentService, mockIngestionService, new SseEmitterRegistry(), mockStorageService);
+                mockDocumentService, mockIngestionService, new SseEmitterRegistry(), mockStorageService,
+                new com.jargoyle.config.properties.MvcAsyncProperties(0, 0, 0, null, 0));
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setCustomArgumentResolvers(new FixedCurrentUserResolver())

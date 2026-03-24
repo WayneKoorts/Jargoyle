@@ -86,6 +86,8 @@ jargoyle/
 └── design/          # Specification and design documents
 ```
 
+See the [backend architecture](src/backend/README.md#architecture) and [frontend architecture](src/frontend/README.md#architecture) guides for detailed breakdowns and diagrams.
+
 ## Further Reading
 
 See [`design/1-jargoyle-spec.md`](design/1-jargoyle-spec.md) for the full project specification.

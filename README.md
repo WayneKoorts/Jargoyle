@@ -9,6 +9,38 @@
 
 Jargoyle is a document explanation tool. Upload everyday documents — phone bills, insurance policies, rental agreements, bank terms — and get a plain-English summary with key facts highlighted. Then ask follow-up questions in a conversational chat, with every answer grounded in your actual document.
 
+## Screenshots
+
+### Document list
+
+Browse all your uploaded documents, each tagged by category.
+
+![Document list](docs/screenshots/document_list.png)
+
+### Upload a document
+
+Drag and drop a PDF, or paste text directly.
+
+![Document upload](docs/screenshots/document_upload.png)
+
+### Document details
+
+Read the original text alongside plain-English jargon explanations, and ask follow-up questions in the chat pane.
+
+![Document details](docs/screenshots/document_details.png)
+
+### Summary & Key Facts
+
+Get an AI-generated summary, key facts, and extracted metadata at a glance.
+
+![Summary and key facts](docs/screenshots/document_summary_keyfacts.png)
+
+### Admin panel
+
+Manage users, roles, and access from the admin dashboard.
+
+![Admin edit user](docs/screenshots/admin_edit_user.png)
+
 ## Tech Stack
 
 **Backend:** Java 25, Spring Boot 4, Gradle (Kotlin DSL), PostgreSQL (+ pgvector planned), Spring AI, Flyway

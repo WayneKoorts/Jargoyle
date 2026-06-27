@@ -1,106 +1,50 @@
-# AGENTS.md
+# Repository Guidelines
 
-This file provides guidance to Codex and other OpenAI coding agents when working with code in this repository.
+## Project Structure & Module Organisation
 
-## Project Overview
+Jargoyle is a document explanation tool with a Spring backend and React frontend. Source lives under `src/`; design notes are in `design/`.
 
-Jargoyle is a document explanation tool. Users upload documents (PDFs, images, text) and receive plain-English explanations with follow-up Q&A powered by AI (Spring AI + RAG).
+- `src/backend/` is a Gradle multi-project build.
+- `jargoyle-model/` contains JPA entities, DTOs, enums, validation, and types.
+- `jargoyle-repository/` contains Spring Data repositories.
+- `jargoyle-service/` contains business logic, storage, security helpers, and text extraction.
+- `jargoyle-web/` contains the app, controllers, config, resources, Flyway migrations, and web tests.
+- `src/frontend/` contains the React 19 + TypeScript + Vite SPA.
 
-The developer is experienced in other languages such as C# and is learning Java and the Spring ecosystem. When making changes:
-- Explain Spring and Java concepts, patterns, and trade-offs as you go, not just what changed but why.
-- Prefer clear, explicit code over clever abstractions. Avoid hiding complexity behind layers of indirection.
-- Add brief comments explaining why something works when the pattern may be unfamiliar, such as Spring annotations or security filter chains.
-- Flag gotchas and conventions that differ from what a C# developer might expect, such as checked exceptions, annotation-driven dependency injection, and Gradle idioms.
+## Build, Test, and Development Commands
 
-The full specification lives in `design/1-jargoyle-spec.md`. Phase-specific design documents such as `design/2-file-upload.md` cover implementation details for each milestone.
-
-## Repository Structure
-
-- `src/backend/` - Gradle multi-project build
-  - `jargoyle-model/` - JPA entities, DTOs, enums
-  - `jargoyle-repository/` - Spring Data JPA repositories
-  - `jargoyle-service/` - Business logic: document processing, RAG/chat orchestration, storage, security resolution
-  - `jargoyle-web/` - Spring Boot application (controllers, config, entry point)
-- `src/frontend/` - React SPA (React 19, TypeScript, Vite, Tailwind CSS)
-- `design/` - Project specification and design documents
-
-## Tech Stack
-
-Backend: Java 25, Spring Boot 4.0.3, Spring AI (OpenAI), Gradle 9.3.1 (Kotlin DSL), PostgreSQL + pgvector
-Frontend: React 19, TypeScript 5.9, Vite 7.3, Tailwind CSS 4.2, Vitest 4, React Testing Library, MSW 2
-
-## Build Commands
-
-All backend commands run from `src/backend/`:
+Run backend commands from `src/backend/`:
 
 ```bash
-./gradlew build                    # Compile, test, and package all sub-projects
-./gradlew test                     # Run tests across all sub-projects
-./gradlew :jargoyle-web:bootRun    # Start the application
-./gradlew dependencies             # View dependency tree
+./gradlew build                    # Compile, test, and package all backend modules
+./gradlew test                     # Run all backend tests
+./gradlew :jargoyle-web:bootRun    # Start the Spring Boot app
+./gradlew :jargoyle-service:test --tests "com.jargoyle.service.DocumentServiceTests"
 ```
 
-Run a single test class:
+Run frontend commands from `src/frontend/`:
 
 ```bash
-./gradlew :jargoyle-service:test --tests "com.jargoyle.SomeTests"
+npm install      # Install dependencies
+npm run dev      # Start Vite dev server
+npm run build    # Type-check and build production assets
+npm run lint     # Run ESLint
 ```
 
-Frontend commands run from `src/frontend/`:
+For local services, use root `compose.yml`, e.g. `podman compose --profile dev up db`.
 
-```bash
-npm install          # Install dependencies
-npm run dev          # Start dev server (Vite)
-npm run build        # Production build
-npm run lint         # Run ESLint
-npm run preview      # Preview production build locally
-npm test             # Run tests (Vitest)
-npm run test:watch   # Run tests in watch mode
-```
+## Coding Style & Naming Conventions
 
-## Backend Architecture
+Use Java 25, Spring Boot 4, Gradle Kotlin DSL, TypeScript, and React function components. Java code uses package root `com.jargoyle`, 4-space indentation, explicit classes, and clear Spring annotations. Keep comments short and focused on why a pattern matters. Frontend code follows the ESLint flat config and TypeScript settings. Use British English in code, comments, docs, and commit messages.
 
-- Package root: `com.jargoyle`
-- Entry point: `jargoyle-web/.../JargoyleApplication.java`
-- Database migrations: Flyway, migration files go in `jargoyle-web/src/main/resources/db/migration/`
-- Test naming: `*Tests` suffix, for example `JargoyleApplicationTests`
-- Integration tests: Testcontainers with PostgreSQL
-- Service split pattern: Separate CRUD services from orchestration services (e.g. `ConversationService` for CRUD, `ChatService` for RAG pipeline). Keeps each service focused and testable.
-- SSE streaming: Chat endpoints return `Flux<ChatStreamEvent>` with `produces = TEXT_EVENT_STREAM_VALUE`. Event types: `TOKEN`, `COMPLETE`, `ERROR`.
-- Ownership verification: Repository methods like `findByIdAndUserId` use JPQL joins to combine lookup and authorisation in a single query, throwing the appropriate `NotFoundException` if the join returns empty.
-- Token-budgeted retrieval: The RAG pipeline includes as many document chunks as fit within a configurable token budget (`maxContextTokens`), ordered by cosine similarity. For small documents, the LLM receives the full document content. A `maxChunks` safety cap limits the maximum number of database rows fetched.
+## Testing Guidelines
 
-Auto-configuration for DataSource and Hibernate is excluded in the default `application.yml` profile so the application can start without a database. The `dev` and `prod` profiles override this with `exclude: []`, enabling full database support. When running locally, use the `dev` profile.
+Backend tests use JUnit 5, Mockito where needed, and Testcontainers for database tests. Name Java test classes with the `*Tests` suffix, mirroring the package under test. Put module-specific tests in each module’s `src/test/java`. Run `./gradlew test` before submitting backend changes and `npm run lint && npm run build` for frontend changes.
 
-`SecurityConfig.java` in `jargoyle-web` configures OAuth2/OIDC login with a custom user service. It also enables `@EnableMethodSecurity` for `@PreAuthorize` support and enforces role-based access on `/api/admin/**`, which requires the `ADMIN` role.
+## Commit & Pull Request Guidelines
 
-Users have a `role` field (`Role` enum: `USER`, `ADMIN`) stored as a string in the database. The `CustomOidcUserService` injects the local role as a `GrantedAuthority` into the Spring Security context on login, so `hasRole('ADMIN')` works natively throughout the app.
+Recent commits use short imperative summaries such as `Add DocumentChunk entity` or `Show documents as uncategorised...`. Keep commits small and signed; unsigned commits are not allowed. Do not commit unless explicitly asked. Pull requests should describe the change, link related issues or design notes, list test commands run, and include screenshots for visible UI changes.
 
-## Frontend Architecture
+## Security & Configuration Tips
 
-- Component organisation: Feature-related components are grouped in subdirectories (e.g. `components/chat/`). General-purpose components sit directly in `components/`.
-- Hook patterns: React Query (`@tanstack/react-query`) drives all CRUD data fetching and mutations (e.g. `useConversations`, `useMessages`, `useCreateConversation`). Streaming operations that don't fit the request/response model use custom `useState`-based hooks (e.g. `useChatStream`).
-- API layer: TypeScript interfaces in `src/api/` mirror backend DTOs. SSE streaming uses an `AsyncGenerator` via raw `fetch` + `ReadableStream` (not `EventSource`, which only supports GET).
-- Layout modes: The `Layout` component supports a `fullHeight` mode for viewport-filling pages (e.g. the chat view) vs the default scrollable content area.
-- Icons: Use the Lucide React library (`lucide-react`) for all icons. Import individual icons (e.g. `import { User } from 'lucide-react'`) — the library is tree-shakeable so only imported icons are bundled.
-
-## Frontend Testing
-
-- Test runner: Vitest with jsdom environment, configured in `vitest.config.ts`
-- Test co-location: test files sit alongside source files, for example `ChatPane.tsx` and `ChatPane.test.tsx`
-- Shared infrastructure: `src/test/` contains setup, MSW handlers, and `renderWithProviders()` / `createTestQueryClient()` helpers
-- API mocking: MSW intercepts at the network level; default handlers live in `msw-handlers.ts`, with per-test overrides via `server.use(...)`
-- Extracted utilities: pure functions such as `displayTitle`, `displayUserName`, `formatDate`, `formatFileSize`, `formatRelativeTime`, and `truncateWithEllipsis` live in `src/utils/display.ts`
-- SSE/streaming test patterns: `createSSEResponse()` builds a `Response` with a `ReadableStream` body for testing the `streamChat` async generator. Streaming hook tests mock the API module's generator function directly.
-- CI: frontend tests run in a separate `frontend-test` job in `.github/workflows/ci.yml`, publishing JUnit XML results
-
-## Conventions
-
-- Use British English everywhere: code, comments, commit messages, documentation, and user-facing copy
-- Never commit unless explicitly asked
-- If asked to commit, commits must be signed
-- Keep commit messages short and descriptive
-- Break commits into small, logical chunks wherever possible. Each commit should represent a single cohesive change — for example, introducing a new service and its tests in one commit, then wiring it into an existing component in a separate commit. Avoid bundling unrelated changes into a single commit
-- Add Javadoc comments to all new top-level types (classes, interfaces, records, enums) and to all methods. The only exception is trivially obvious methods such as simple getters or one-line delegates — when in doubt, add the Javadoc rather than omit it
-- Use the `product-owner` agent for GitHub issue or ticket operations
-- Agent instruction file sync: When updating any agent instruction file, update all three (`CLAUDE.md`, `.github/copilot-instructions.md`, `AGENTS.md`) — not just the one for the current agent
+Copy `.env.example` to `.env` for local configuration, but never commit secrets. Dev-only login endpoints are available only under the `dev` Spring profile. Database migrations belong in `jargoyle-web/src/main/resources/db/migration/` and should be additive Flyway migrations.
